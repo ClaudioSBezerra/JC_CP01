@@ -9,7 +9,7 @@ import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from '@/components/ui/select';
 import {
-  Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter,
+  Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogFooter,
 } from '@/components/ui/dialog';
 import {
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
@@ -300,6 +300,7 @@ export default function EnderecosPicking() {
               <Upload className="h-5 w-5" />
               Importar Enderecos de Picking (CSV)
             </DialogTitle>
+            <DialogDescription className="sr-only">Importar endereços de picking a partir de um arquivo CSV</DialogDescription>
           </DialogHeader>
           <div className="space-y-4">
             <div className="rounded-lg bg-muted p-3 text-xs space-y-1">
@@ -334,6 +335,7 @@ export default function EnderecosPicking() {
         <DialogContent className="max-w-sm">
           <DialogHeader>
             <DialogTitle>Confirmar exclusao</DialogTitle>
+            <DialogDescription className="sr-only">Confirmar remoção do endereço de picking</DialogDescription>
           </DialogHeader>
           <p className="text-sm text-muted-foreground">Deseja remover este endereco de picking? Esta acao nao pode ser desfeita.</p>
           <DialogFooter>

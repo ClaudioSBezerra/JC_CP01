@@ -6,7 +6,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { toast } from 'sonner';
 import { Plus, Trash2, Route, Users, ChevronDown, ChevronUp, Upload, Download } from 'lucide-react';
@@ -403,6 +403,7 @@ export default function Rotas() {
         <DialogContent className="max-w-md">
           <DialogHeader>
             <DialogTitle>Nova Rota</DialogTitle>
+            <DialogDescription className="sr-only">Criar uma nova rota de visitas para um representante</DialogDescription>
           </DialogHeader>
           <div className="space-y-3 mt-2">
             <div className="space-y-1">
@@ -433,6 +434,7 @@ export default function Rotas() {
               <Upload className="h-4 w-4" />
               Importar Clientes via CSV
             </DialogTitle>
+            <DialogDescription className="sr-only">Importar clientes da rota a partir de um arquivo CSV</DialogDescription>
           </DialogHeader>
           {showImportDialog !== null && (
             <ImportDialog
@@ -454,6 +456,7 @@ export default function Rotas() {
         <DialogContent className="max-w-lg">
           <DialogHeader>
             <DialogTitle>Adicionar Cliente à Rota</DialogTitle>
+            <DialogDescription className="sr-only">Preencha os dados do cliente para adicionar à rota</DialogDescription>
           </DialogHeader>
           <div className="space-y-3 mt-2 max-h-[60vh] overflow-y-auto pr-1">
             <div className="grid grid-cols-2 gap-3">

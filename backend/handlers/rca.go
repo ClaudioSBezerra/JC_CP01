@@ -1,9 +1,11 @@
 package handlers
 
 import (
+	"bytes"
 	"database/sql"
 	"encoding/csv"
 	"encoding/json"
+	"io"
 	"net/http"
 	"strconv"
 	"strings"
@@ -680,16 +682,23 @@ func DeleteRCACustomerHandler(db *sql.DB) http.HandlerFunc {
 // ImportRCACustomersHandler handles POST /api/rca/routes/:id/customers/import
 // Accepts multipart/form-data with field "file" (CSV).
 // CSV columns (header required):
-//   company_name, contact_name, phone, city, neighborhood, address, address_number, priority, notes
+//
+//	company_name, contact_name, phone, city, neighborhood, address, address_number, priority, notes
 func ImportRCACustomersHandler(db *sql.DB) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
+		jsonErr := func(msg string, code int) {
+			w.Header().Set("Content-Type", "application/json")
+			w.WriteHeader(code)
+			json.NewEncoder(w).Encode(map[string]string{"error": msg})
+		}
+
 		companyID := GetCompanyIDFromContext(r)
 		if companyID == "" {
-			http.Error(w, "Company not found", http.StatusBadRequest)
+			jsonErr("Sessão inválida. Faça login novamente.", http.StatusUnauthorized)
 			return
 		}
 		if GetUserRoleFromContext(r) == "rca" {
-			http.Error(w, "Forbidden", http.StatusForbidden)
+			jsonErr("Sem permissão", http.StatusForbidden)
 			return
 		}
 
@@ -697,7 +706,7 @@ func ImportRCACustomersHandler(db *sql.DB) http.HandlerFunc {
 		path := strings.TrimPrefix(r.URL.Path, "/api/rca/routes/")
 		parts := strings.Split(path, "/")
 		if len(parts) < 3 {
-			http.Error(w, "Invalid path", http.StatusBadRequest)
+			jsonErr("Caminho inválido", http.StatusBadRequest)
 			return
 		}
 		routeID := parts[0]
@@ -706,30 +715,49 @@ func ImportRCACustomersHandler(db *sql.DB) http.HandlerFunc {
 		var exists bool
 		db.QueryRow(`SELECT EXISTS(SELECT 1 FROM rca_routes WHERE id=$1 AND company_id=$2)`, routeID, companyID).Scan(&exists)
 		if !exists {
-			http.Error(w, "Route not found", http.StatusNotFound)
+			jsonErr("Rota não encontrada", http.StatusNotFound)
 			return
 		}
 
-		if err := r.ParseMultipartForm(5 << 20); err != nil {
-			http.Error(w, "Failed to parse form", http.StatusBadRequest)
+		if err := r.ParseMultipartForm(10 << 20); err != nil {
+			jsonErr("Erro ao processar formulário: "+err.Error(), http.StatusBadRequest)
 			return
 		}
 		file, _, err := r.FormFile("file")
 		if err != nil {
-			http.Error(w, "File 'file' not found in request", http.StatusBadRequest)
+			jsonErr("Campo 'file' não encontrado: "+err.Error(), http.StatusBadRequest)
 			return
 		}
 		defer file.Close()
 
-		reader := csv.NewReader(file)
+		data, err := io.ReadAll(file)
+		if err != nil {
+			jsonErr("Erro ao ler arquivo", http.StatusBadRequest)
+			return
+		}
+
+		// Strip UTF-8 BOM added by Excel
+		data = bytes.TrimPrefix(data, []byte{0xEF, 0xBB, 0xBF})
+
+		// Autodetect delimiter: Brazilian Excel uses ';'
+		delimiter := ','
+		if firstLine := strings.SplitN(string(data), "\n", 2)[0]; strings.Count(firstLine, ";") > strings.Count(firstLine, ",") {
+			delimiter = ';'
+		}
+
+		reader := csv.NewReader(bytes.NewReader(data))
+		reader.Comma = rune(delimiter)
 		reader.TrimLeadingSpace = true
+		reader.LazyQuotes = true
+		reader.FieldsPerRecord = -1
+
 		records, err := reader.ReadAll()
 		if err != nil {
-			http.Error(w, "Invalid CSV: "+err.Error(), http.StatusBadRequest)
+			jsonErr("CSV inválido: "+err.Error(), http.StatusBadRequest)
 			return
 		}
 		if len(records) < 2 {
-			http.Error(w, "CSV must have header + at least one data row", http.StatusBadRequest)
+			jsonErr("CSV deve ter cabeçalho + pelo menos uma linha de dados", http.StatusBadRequest)
 			return
 		}
 
@@ -749,7 +777,7 @@ func ImportRCACustomersHandler(db *sql.DB) http.HandlerFunc {
 
 		tx, err := db.Begin()
 		if err != nil {
-			http.Error(w, "Database error", http.StatusInternalServerError)
+			jsonErr("Erro de banco de dados", http.StatusInternalServerError)
 			return
 		}
 		defer tx.Rollback()
@@ -790,7 +818,7 @@ func ImportRCACustomersHandler(db *sql.DB) http.HandlerFunc {
 		}
 
 		if err := tx.Commit(); err != nil {
-			http.Error(w, "Error committing", http.StatusInternalServerError)
+			jsonErr("Erro ao salvar dados", http.StatusInternalServerError)
 			return
 		}
 

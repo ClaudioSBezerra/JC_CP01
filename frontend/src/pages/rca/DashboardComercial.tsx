@@ -7,7 +7,7 @@ import 'leaflet/dist/leaflet.css';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Users, MapPin, CheckCircle, Clock, ChevronRight, ExternalLink, AlertTriangle, Bell } from 'lucide-react';
 
 const ALERT_THRESHOLD_M = 5;
@@ -375,6 +375,7 @@ export default function DashboardComercial() {
               <MapPin className="h-4 w-4 text-green-600" />
               {selectedRep?.full_name} — Última localização
             </DialogTitle>
+            <DialogDescription className="sr-only">Mapa com a última localização registrada do representante</DialogDescription>
             {selectedPos && (
               <p className="text-sm text-muted-foreground">
                 📍 {selectedPos.customer_name} &nbsp;·&nbsp;

@@ -10,7 +10,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { CheckCircle, Clock, XCircle, MapPin, List, Map, Building2, AlertTriangle, Bell } from 'lucide-react';
 
 const ALERT_THRESHOLD_M = 5; // meters — check-ins beyond this are flagged
@@ -213,6 +213,7 @@ function VisitMapModal({
             <MapPin className="h-4 w-4" />
             {visit.customer_name}
           </DialogTitle>
+          <DialogDescription className="sr-only">Detalhes da visita e localização do cliente</DialogDescription>
           <div className="flex flex-wrap gap-3 mt-1">
             <span className="text-xs text-muted-foreground flex items-center gap-1">
               <span className="w-2.5 h-2.5 rounded-full bg-green-500 inline-block"></span>
