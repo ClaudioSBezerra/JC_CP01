@@ -57,4 +57,16 @@ jobs:
           RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN }}
         run: |
           railway domain --service web 2>/dev/null || echo "Domain already exists"
-          echo "Deploy concluido!"
+
+      - name: Rename domain to jcinteligenc
+        continue-on-error: true
+        env:
+          RAILWAY_ACCOUNT_TOKEN: ${{ secrets.RAILWAY_ACCOUNT_TOKEN }}
+        run: |
+          RESPONSE=$(curl -s -X POST \
+            -H "Content-Type: application/json" \
+            -H "Authorization: Bearer $RAILWAY_ACCOUNT_TOKEN" \
+            -d '{"query":"mutation { serviceDomainUpdate(input: { serviceDomainId: \"98a67b02-b5de-435b-a493-d654978c5661\", serviceId: \"c7095420-423e-4da9-b345-df52f1dd561e\", environmentId: \"bff8f416-a7f0-4110-94a9-62c532cca743\", domain: \"jcinteligenc.up.railway.app\" }) }"}' \
+            https://backboard.railway.app/graphql/v2)
+          echo "Response: $RESPONSE"
+          echo "Deploy concluido! App em: https://jcinteligenc.up.railway.app"
