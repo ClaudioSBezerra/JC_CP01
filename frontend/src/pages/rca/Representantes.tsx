@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '../../contexts/AuthContext';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -143,44 +143,37 @@ export default function Representantes() {
     }
   };
 
+  const F = ({ label, children }: { label: string; children: React.ReactNode }) => (
+    <div className="space-y-0.5">
+      <Label className="text-xs text-muted-foreground">{label}</Label>
+      {children}
+    </div>
+  );
+
   const profileFields = (
     vals: typeof EMPTY_PROFILE,
     set: (fn: (v: typeof EMPTY_PROFILE) => typeof EMPTY_PROFILE) => void
   ) => (
     <>
-      <div className="space-y-1">
-        <Label>Telefone</Label>
-        <Input
-          placeholder="(XX) XXXXX-XXXX"
-          value={vals.phone}
-          onChange={e => set(v => ({ ...v, phone: e.target.value }))}
-        />
+      <div className="grid grid-cols-2 gap-2">
+        <F label="Telefone">
+          <Input className="h-8 text-sm" placeholder="(XX) XXXXX-XXXX"
+            value={vals.phone} onChange={e => set(v => ({ ...v, phone: e.target.value }))} />
+        </F>
+        <F label="Território / Região">
+          <Input className="h-8 text-sm" placeholder="Zona Norte"
+            value={vals.territory} onChange={e => set(v => ({ ...v, territory: e.target.value }))} />
+        </F>
       </div>
-      <div className="space-y-1">
-        <Label>Território / Região</Label>
-        <Input
-          placeholder="Ex: Zona Norte — Goiânia"
-          value={vals.territory}
-          onChange={e => set(v => ({ ...v, territory: e.target.value }))}
-        />
-      </div>
-      <div className="grid grid-cols-2 gap-3">
-        <div className="space-y-1">
-          <Label>Tipo de Veículo</Label>
-          <Input
-            placeholder="Carro, Moto..."
-            value={vals.vehicle_type}
-            onChange={e => set(v => ({ ...v, vehicle_type: e.target.value }))}
-          />
-        </div>
-        <div className="space-y-1">
-          <Label>Placa</Label>
-          <Input
-            placeholder="ABC-1234"
-            value={vals.vehicle_plate}
-            onChange={e => set(v => ({ ...v, vehicle_plate: e.target.value }))}
-          />
-        </div>
+      <div className="grid grid-cols-2 gap-2">
+        <F label="Tipo de Veículo">
+          <Input className="h-8 text-sm" placeholder="Carro, Moto..."
+            value={vals.vehicle_type} onChange={e => set(v => ({ ...v, vehicle_type: e.target.value }))} />
+        </F>
+        <F label="Placa">
+          <Input className="h-8 text-sm" placeholder="ABC-1234"
+            value={vals.vehicle_plate} onChange={e => set(v => ({ ...v, vehicle_plate: e.target.value }))} />
+        </F>
       </div>
     </>
   );
@@ -245,88 +238,72 @@ export default function Representantes() {
       </Card>
 
       <Dialog open={showDialog} onOpenChange={setShowDialog}>
-        <DialogContent className="max-w-md">
-          <DialogHeader>
-            <DialogTitle>Novo Representante RCA</DialogTitle>
+        <DialogContent className="max-w-sm p-4">
+          <DialogHeader className="pb-1">
+            <DialogTitle className="text-base">Novo Representante RCA</DialogTitle>
           </DialogHeader>
 
-          <Tabs defaultValue="new" className="mt-2">
-            <TabsList className="w-full">
-              <TabsTrigger value="new" className="flex-1">Criar usuário</TabsTrigger>
-              <TabsTrigger value="link" className="flex-1">Vincular existente</TabsTrigger>
+          <Tabs defaultValue="new">
+            <TabsList className="w-full h-8 text-xs">
+              <TabsTrigger value="new" className="flex-1 text-xs">Criar usuário</TabsTrigger>
+              <TabsTrigger value="link" className="flex-1 text-xs">Vincular existente</TabsTrigger>
             </TabsList>
 
             {/* Tab: criar novo usuário + perfil RCA */}
-            <TabsContent value="new" className="space-y-4 mt-4">
-              <div className="p-3 rounded-md bg-blue-50 border border-blue-200 text-sm text-blue-700">
+            <TabsContent value="new" className="space-y-2 mt-2">
+              <div className="px-2 py-1.5 rounded bg-blue-50 border border-blue-200 text-xs text-blue-700">
                 Cria o login e o perfil RCA em uma única operação.
               </div>
-              <div className="space-y-1">
-                <Label>Nome completo *</Label>
-                <Input
-                  placeholder="João Silva"
-                  value={newUser.full_name}
-                  onChange={e => setNewUser(v => ({ ...v, full_name: e.target.value }))}
-                />
-              </div>
-              <div className="space-y-1">
-                <Label>E-mail *</Label>
-                <Input
-                  type="email"
-                  placeholder="joao.rca@jc.com.br"
-                  value={newUser.email}
-                  onChange={e => setNewUser(v => ({ ...v, email: e.target.value }))}
-                />
-              </div>
-              <div className="space-y-1">
-                <Label>Senha *</Label>
-                <Input
-                  type="password"
-                  placeholder="Mínimo 6 caracteres"
-                  value={newUser.password}
-                  onChange={e => setNewUser(v => ({ ...v, password: e.target.value }))}
-                />
+              <F label="Nome completo *">
+                <Input className="h-8 text-sm" placeholder="João Silva"
+                  value={newUser.full_name} onChange={e => setNewUser(v => ({ ...v, full_name: e.target.value }))} />
+              </F>
+              <div className="grid grid-cols-2 gap-2">
+                <F label="E-mail *">
+                  <Input className="h-8 text-sm" type="email" placeholder="joao@jc.com.br"
+                    value={newUser.email} onChange={e => setNewUser(v => ({ ...v, email: e.target.value }))} />
+                </F>
+                <F label="Senha *">
+                  <Input className="h-8 text-sm" type="password" placeholder="Mín. 6 chars"
+                    value={newUser.password} onChange={e => setNewUser(v => ({ ...v, password: e.target.value }))} />
+                </F>
               </div>
               {profileFields(newUser, setNewUser as any)}
-              <div className="flex gap-2 pt-2">
-                <Button onClick={handleSaveNew} disabled={saving} className="flex-1">
+              <div className="flex gap-2 pt-1">
+                <Button size="sm" onClick={handleSaveNew} disabled={saving} className="flex-1">
                   {saving ? 'Salvando...' : 'Criar Representante'}
                 </Button>
-                <Button variant="outline" onClick={() => setShowDialog(false)} disabled={saving}>
+                <Button size="sm" variant="outline" onClick={() => setShowDialog(false)} disabled={saving}>
                   Cancelar
                 </Button>
               </div>
             </TabsContent>
 
             {/* Tab: vincular usuário já existente */}
-            <TabsContent value="link" className="space-y-4 mt-4">
-              <div className="p-3 rounded-md bg-amber-50 border border-amber-200 text-sm text-amber-700">
-                O usuário selecionado terá o perfil promovido para <strong>rca</strong>.
+            <TabsContent value="link" className="space-y-2 mt-2">
+              <div className="px-2 py-1.5 rounded bg-amber-50 border border-amber-200 text-xs text-amber-700">
+                O usuário selecionado será promovido para <strong>rca</strong>.
               </div>
-              <div className="space-y-1">
-                <Label>Usuário *</Label>
-                <Select
-                  value={linkUser.user_id}
-                  onValueChange={v => setLinkUser(u => ({ ...u, user_id: v }))}
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder="Selecione um usuário..." />
+              <F label="Usuário *">
+                <Select value={linkUser.user_id} onValueChange={v => setLinkUser(u => ({ ...u, user_id: v }))}>
+                  <SelectTrigger className="h-8 text-sm">
+                    <SelectValue placeholder="Selecione..." />
                   </SelectTrigger>
                   <SelectContent>
                     {users.map(u => (
-                      <SelectItem key={u.id} value={String(u.id)}>
+                      <SelectItem key={u.id} value={String(u.id)} className="text-sm">
                         {u.full_name} — {u.email}
                       </SelectItem>
                     ))}
                   </SelectContent>
                 </Select>
-              </div>
+              </F>
               {profileFields(linkUser, setLinkUser as any)}
-              <div className="flex gap-2 pt-2">
-                <Button onClick={handleSaveLink} disabled={saving} className="flex-1">
+              <div className="flex gap-2 pt-1">
+                <Button size="sm" onClick={handleSaveLink} disabled={saving} className="flex-1">
                   {saving ? 'Salvando...' : 'Vincular Representante'}
                 </Button>
-                <Button variant="outline" onClick={() => setShowDialog(false)} disabled={saving}>
+                <Button size="sm" variant="outline" onClick={() => setShowDialog(false)} disabled={saving}>
                   Cancelar
                 </Button>
               </div>
