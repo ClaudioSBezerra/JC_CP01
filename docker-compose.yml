@@ -1,45 +1,43 @@
 services:
-  # Backend (Go)
   api:
     build:
       context: ./backend
       dockerfile: Dockerfile
-    container_name: aprovapedido-api
+    container_name: jcinteligenc-api
     restart: always
-    ports:
-      - "8082:8081"
     expose:
       - "8081"
     environment:
       - PORT=8081
       - DATABASE_URL=postgres://${DB_USER}:${DB_PASSWORD}@db:5432/${DB_NAME}?sslmode=disable
-      - JWT_SECRET=${JWT_SECRET:-aprovapedido-dev-secret}
-      - GO_ENV=${GO_ENV:-development}
-      - ZAI_API_KEY=${ZAI_API_KEY:-}
+      - JWT_SECRET=${JWT_SECRET}
+      - GO_ENV=production
+      - TZ=America/Sao_Paulo
     depends_on:
       db:
         condition: service_healthy
     networks:
-      - ap_net
+      - jc_net
 
-  # Frontend (React)
   web:
-    build: ./frontend
-    container_name: aprovapedido-web
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: jcinteligenc-web
     restart: always
-    ports:
-      - "3001:80"
     expose:
       - "80"
+    environment:
+      - API_URL=http://api:8081
+      - PORT=80
     depends_on:
       - api
     networks:
-      - ap_net
+      - jc_net
 
-  # Banco de Dados
   db:
     image: postgres:15-alpine
-    container_name: aprovapedido-db
+    container_name: jcinteligenc-db
     restart: always
     environment:
       - POSTGRES_USER=${DB_USER}
@@ -48,16 +46,26 @@ services:
     volumes:
       - postgres_data:/var/lib/postgresql/data
     networks:
-      - ap_net
+      - jc_net
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U ${DB_USER} -d ${DB_NAME}"]
       interval: 10s
       timeout: 5s
       retries: 5
 
+  redis:
+    image: redis:7-alpine
+    container_name: jcinteligenc-redis
+    restart: always
+    volumes:
+      - redis_data:/data
+    networks:
+      - jc_net
+
 networks:
-  ap_net:
+  jc_net:
     driver: bridge
 
 volumes:
   postgres_data:
+  redis_data:
