@@ -719,22 +719,13 @@ func ImportRCACustomersHandler(db *sql.DB) http.HandlerFunc {
 			return
 		}
 
-		if err := r.ParseMultipartForm(10 << 20); err != nil {
-			jsonErr("Erro ao processar formulário: "+err.Error(), http.StatusBadRequest)
-			return
-		}
-		file, _, err := r.FormFile("file")
+		// Read CSV body directly (text/csv) — avoids multipart/form-data complexity
+		data, err := io.ReadAll(r.Body)
 		if err != nil {
-			jsonErr("Campo 'file' não encontrado: "+err.Error(), http.StatusBadRequest)
+			jsonErr("Erro ao ler corpo da requisição", http.StatusBadRequest)
 			return
 		}
-		defer file.Close()
-
-		data, err := io.ReadAll(file)
-		if err != nil {
-			jsonErr("Erro ao ler arquivo", http.StatusBadRequest)
-			return
-		}
+		defer r.Body.Close()
 
 		// Strip UTF-8 BOM added by Excel
 		data = bytes.TrimPrefix(data, []byte{0xEF, 0xBB, 0xBF})

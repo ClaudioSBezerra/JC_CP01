@@ -54,12 +54,15 @@ function ImportDialog({ token, routeId, onImported, onClose }: {
     if (!file) { toast.error('Selecione um arquivo CSV'); return; }
     setImporting(true);
     try {
-      const form = new FormData();
-      form.append('file', file);
+      // Send raw CSV text — avoids multipart/form-data parsing issues
+      const text = await file.text();
       const res = await fetch(`/api/rca/routes/${routeId}/customers/import`, {
         method: 'POST',
-        headers: { Authorization: `Bearer ${token}` },
-        body: form,
+        headers: {
+          Authorization: `Bearer ${token}`,
+          'Content-Type': 'text/csv',
+        },
+        body: text,
       });
       const data = await res.json();
       if (res.ok) {
