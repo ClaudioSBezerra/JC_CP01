@@ -21,6 +21,7 @@ jobs:
           railway --version
 
       - name: Set API environment variables
+        continue-on-error: true
         env:
           RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN }}
         run: |
@@ -39,6 +40,7 @@ jobs:
         run: railway up --service api --detach
 
       - name: Set Web environment variables
+        continue-on-error: true
         env:
           RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN }}
         run: |
