@@ -1,4 +1,3 @@
-import { useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import {
@@ -6,96 +5,33 @@ import {
   SidebarContent,
   SidebarHeader,
   SidebarFooter,
-  SidebarMenu,
-  SidebarMenuItem,
-  SidebarMenuButton,
 } from '@/components/ui/sidebar';
 import {
   LayoutDashboard, Package, ClipboardCheck, History, Settings,
   LogOut, ShoppingCart, AlertTriangle, Sparkles, Search,
   Warehouse, Waves, SlidersHorizontal, Truck, BarChart3,
-  Users, Route, UserCog, ChevronDown,
+  Users, Route, UserCog,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Separator } from '@/components/ui/separator';
 
 type MenuItem = { title: string; icon: React.ElementType; href: string };
 
-// ── Grupo colapsável ─────────────────────────────────────────────────────────
-function NavGroup({
-  label,
-  icon: GroupIcon,
-  items,
-  defaultOpen,
-  currentPath,
-}: {
-  label: string;
-  icon: React.ElementType;
-  items: MenuItem[];
-  defaultOpen: boolean;
-  currentPath: string;
-}) {
-  const [open, setOpen] = useState(defaultOpen);
-
-  return (
-    <div>
-      {/* Cabeçalho do grupo */}
-      <button
-        type="button"
-        onClick={() => setOpen(v => !v)}
-        className="flex w-full items-center gap-2 rounded-md px-3 py-2 text-sm font-semibold text-sidebar-foreground/70 hover:bg-sidebar-accent hover:text-sidebar-accent-foreground transition-colors"
-      >
-        <GroupIcon className="h-4 w-4 shrink-0" />
-        <span className="flex-1 text-left">{label}</span>
-        <ChevronDown
-          className="h-3.5 w-3.5 shrink-0 transition-transform duration-200"
-          style={{ transform: open ? 'rotate(0deg)' : 'rotate(-90deg)' }}
-        />
-      </button>
-
-      {/* Itens do grupo */}
-      {open && (
-        <div className="ml-4 border-l border-sidebar-border pl-2 py-0.5">
-          <SidebarMenu>
-            {items.map(item => {
-              const isActive =
-                item.href === '/'
-                  ? currentPath === '/'
-                  : currentPath === item.href || currentPath.startsWith(item.href + '/');
-              return (
-                <SidebarMenuItem key={item.href}>
-                  <SidebarMenuButton asChild isActive={isActive}>
-                    <Link to={item.href}>
-                      <item.icon className="h-3.5 w-3.5" />
-                      <span>{item.title}</span>
-                    </Link>
-                  </SidebarMenuButton>
-                </SidebarMenuItem>
-              );
-            })}
-          </SidebarMenu>
-        </div>
-      )}
-    </div>
-  );
-}
-
-// ── Definição dos grupos ─────────────────────────────────────────────────────
 const GROUPS = [
   {
     label: 'Compras',
     icon: ShoppingCart,
     prefixes: ['/', '/pedidos', '/importar', '/consulta', '/produtos', '/historico', '/configuracoes'],
     items: [
-      { title: 'Dashboard', icon: LayoutDashboard, href: '/' },
-      { title: 'Pedidos Pendentes', icon: ClipboardCheck, href: '/pedidos-pendentes' },
-      { title: 'Importar Produtos', icon: Package, href: '/importar-produtos' },
-      { title: 'Importar Pedidos', icon: ShoppingCart, href: '/importar-pedidos' },
-      { title: 'Consulta Inteligente', icon: Sparkles, href: '/consulta-inteligente' },
-      { title: 'Consulta de Produtos', icon: Search, href: '/consulta-produtos' },
-      { title: 'Giro Baixo', icon: AlertTriangle, href: '/produtos-giro-baixo' },
-      { title: 'Histórico Aprovações', icon: History, href: '/historico' },
-      { title: 'Parâmetros de Giro', icon: Settings, href: '/configuracoes' },
+      { title: 'Dashboard',           icon: LayoutDashboard, href: '/' },
+      { title: 'Pedidos Pendentes',   icon: ClipboardCheck,  href: '/pedidos-pendentes' },
+      { title: 'Importar Produtos',   icon: Package,         href: '/importar-produtos' },
+      { title: 'Importar Pedidos',    icon: ShoppingCart,    href: '/importar-pedidos' },
+      { title: 'Consulta Inteligente',icon: Sparkles,        href: '/consulta-inteligente' },
+      { title: 'Consulta de Produtos',icon: Search,          href: '/consulta-produtos' },
+      { title: 'Giro Baixo',          icon: AlertTriangle,   href: '/produtos-giro-baixo' },
+      { title: 'Histórico Aprovações',icon: History,         href: '/historico' },
+      { title: 'Parâmetros de Giro',  icon: Settings,        href: '/configuracoes' },
     ],
   },
   {
@@ -103,10 +39,10 @@ const GROUPS = [
     icon: Warehouse,
     prefixes: ['/picking'],
     items: [
-      { title: 'Dashboard Picking', icon: Warehouse, href: '/picking' },
-      { title: 'Endereços', icon: Truck, href: '/picking/enderecos' },
-      { title: 'Ondas de Reabastecimento', icon: Waves, href: '/picking/ondas' },
-      { title: 'Config. Picking', icon: SlidersHorizontal, href: '/picking/configuracoes' },
+      { title: 'Dashboard Picking',        icon: Warehouse,       href: '/picking' },
+      { title: 'Endereços',                icon: Truck,           href: '/picking/enderecos' },
+      { title: 'Ondas de Reabastecimento', icon: Waves,           href: '/picking/ondas' },
+      { title: 'Config. Picking',          icon: SlidersHorizontal,href: '/picking/configuracoes' },
     ],
   },
   {
@@ -115,8 +51,8 @@ const GROUPS = [
     prefixes: ['/rca'],
     items: [
       { title: 'Dashboard Comercial', icon: BarChart3, href: '/rca' },
-      { title: 'Representantes', icon: Users, href: '/rca/representantes' },
-      { title: 'Rotas de Visita', icon: Route, href: '/rca/rotas' },
+      { title: 'Representantes',      icon: Users,     href: '/rca/representantes' },
+      { title: 'Rotas de Visita',     icon: Route,     href: '/rca/rotas' },
     ],
   },
   {
@@ -129,7 +65,28 @@ const GROUPS = [
   },
 ];
 
-// ── Sidebar principal ────────────────────────────────────────────────────────
+function NavItem({ item, currentPath }: { item: MenuItem; currentPath: string }) {
+  const isActive =
+    item.href === '/'
+      ? currentPath === '/'
+      : currentPath === item.href || currentPath.startsWith(item.href + '/');
+
+  return (
+    <Link
+      to={item.href}
+      className={[
+        'flex items-center gap-2 rounded-md px-2 py-1.5 text-sm transition-colors',
+        isActive
+          ? 'bg-sidebar-accent text-sidebar-accent-foreground font-medium'
+          : 'text-sidebar-foreground/80 hover:bg-sidebar-accent hover:text-sidebar-accent-foreground',
+      ].join(' ')}
+    >
+      <item.icon className="h-3.5 w-3.5 shrink-0" />
+      <span>{item.title}</span>
+    </Link>
+  );
+}
+
 export function AppSidebar() {
   const { user, company, logout } = useAuth();
   const location = useLocation();
@@ -156,20 +113,33 @@ export function AppSidebar() {
 
       <Separator className="bg-sidebar-border" />
 
-      <SidebarContent className="gap-0 py-2 px-1">
+      <SidebarContent className="py-2 px-2">
         {visibleGroups.map(g => {
+          const GroupIcon = g.icon;
           const isActive = g.prefixes.some(p =>
             p === '/' ? location.pathname === '/' : location.pathname.startsWith(p)
           );
+
           return (
-            <NavGroup
-              key={g.label}
-              label={g.label}
-              icon={g.icon}
-              items={g.items}
-              defaultOpen={isActive}
-              currentPath={location.pathname}
-            />
+            <details key={g.label} open={isActive} className="group/details mb-1">
+              <summary className="flex cursor-pointer list-none items-center gap-2 rounded-md px-2 py-2 text-sm font-semibold text-sidebar-foreground/70 hover:bg-sidebar-accent hover:text-sidebar-accent-foreground transition-colors select-none">
+                <GroupIcon className="h-4 w-4 shrink-0" />
+                <span className="flex-1">{g.label}</span>
+                {/* Chevron via CSS — roda quando <details> está aberto */}
+                <svg
+                  className="h-3.5 w-3.5 shrink-0 transition-transform duration-200 group-open/details:rotate-180"
+                  fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}
+                >
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
+                </svg>
+              </summary>
+
+              <div className="ml-3 mt-0.5 border-l border-sidebar-border pl-2 pb-1 flex flex-col gap-0.5">
+                {g.items.map(item => (
+                  <NavItem key={item.href} item={item} currentPath={location.pathname} />
+                ))}
+              </div>
+            </details>
           );
         })}
       </SidebarContent>
@@ -180,9 +150,7 @@ export function AppSidebar() {
             {user?.full_name} · {user?.role}
           </div>
           <Button
-            variant="ghost"
-            size="sm"
-            onClick={logout}
+            variant="ghost" size="sm" onClick={logout}
             className="w-full justify-start text-sidebar-foreground/60 hover:text-sidebar-foreground"
           >
             <LogOut className="h-4 w-4 mr-2" />
