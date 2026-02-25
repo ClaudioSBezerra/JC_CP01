@@ -1,23 +1,23 @@
-name: Deploy to Render
+name: CI
 
 on:
   push:
     branches: [main]
-  workflow_dispatch:
+  pull_request:
+    branches: [main]
 
 jobs:
-  deploy:
-    name: Trigger Render deploys
+  build-check:
+    name: Verify Go build
     runs-on: ubuntu-latest
     steps:
-      - name: Deploy API
-        run: |
-          curl -s "${{ secrets.RENDER_DEPLOY_HOOK_API }}" | grep -q '"id"' \
-            && echo "API deploy triggered" \
-            || echo "RENDER_DEPLOY_HOOK_API not configured (set secret to enable)"
+      - uses: actions/checkout@v4
 
-      - name: Deploy Web
-        run: |
-          curl -s "${{ secrets.RENDER_DEPLOY_HOOK_WEB }}" | grep -q '"id"' \
-            && echo "Web deploy triggered" \
-            || echo "RENDER_DEPLOY_HOOK_WEB not configured (set secret to enable)"
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.22'
+
+      - name: Build backend
+        working-directory: backend
+        run: go build ./...
