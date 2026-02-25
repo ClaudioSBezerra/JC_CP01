@@ -1,0 +1,7 @@
+CREATE TABLE IF NOT EXISTS companies (
+    id SERIAL PRIMARY KEY,
+    cnpj VARCHAR(18) UNIQUE NOT NULL,
+    name VARCHAR(255) NOT NULL,
+    trade_name VARCHAR(255),
+    created_at TIMESTAMPTZ DEFAULT NOW()
+);

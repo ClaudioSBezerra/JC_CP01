@@ -1,0 +1,178 @@
+package services
+
+import (
+	"bytes"
+	"encoding/json"
+	"fmt"
+	"io"
+	"net/http"
+	"os"
+	"strings"
+	"time"
+)
+
+const (
+	ModelFlash         = "glm-4.7-flash"
+	ModelFlashFallback = "glm-4.5-flash"
+)
+
+type AIClient struct {
+	apiKey     string
+	httpClient *http.Client
+	baseURL    string
+}
+
+type chatRequest struct {
+	Model     string        `json:"model"`
+	MaxTokens int           `json:"max_tokens"`
+	Messages  []chatMessage `json:"messages"`
+}
+
+type chatMessage struct {
+	Role    string `json:"role"`
+	Content string `json:"content"`
+}
+
+type chatResponse struct {
+	Choices []struct {
+		Message struct {
+			Content          string `json:"content"`
+			ReasoningContent string `json:"reasoning_content"`
+		} `json:"message"`
+	} `json:"choices"`
+	Usage struct {
+		PromptTokens     int `json:"prompt_tokens"`
+		CompletionTokens int `json:"completion_tokens"`
+	} `json:"usage"`
+	Error *struct {
+		Code    string `json:"code"`
+		Message string `json:"message"`
+	} `json:"error"`
+}
+
+type AIResponse struct {
+	Text         string `json:"text"`
+	InputTokens  int    `json:"input_tokens"`
+	OutputTokens int    `json:"output_tokens"`
+	Model        string `json:"model"`
+}
+
+func NewAIClient() *AIClient {
+	apiKey := os.Getenv("ZAI_API_KEY")
+	if apiKey == "" {
+		return nil
+	}
+	return &AIClient{
+		apiKey: apiKey,
+		httpClient: &http.Client{
+			Timeout: 60 * time.Second,
+		},
+		baseURL: "https://api.z.ai/api/paas/v4/chat/completions",
+	}
+}
+
+func (c *AIClient) IsAvailable() bool {
+	return c != nil && c.apiKey != ""
+}
+
+func (c *AIClient) GenerateFastRaw(system, userPrompt, model string, maxTokens int) (*AIResponse, error) {
+	if c == nil {
+		return nil, fmt.Errorf("AI client not configured")
+	}
+	if model == "" {
+		model = ModelFlash
+	}
+	if maxTokens == 0 {
+		maxTokens = 4096
+	}
+	fastClient := &http.Client{Timeout: 90 * time.Second}
+	origClient := c.httpClient
+	c.httpClient = fastClient
+	defer func() { c.httpClient = origClient }()
+
+	messages := []chatMessage{{Role: "user", Content: userPrompt}}
+	if system != "" {
+		messages = append([]chatMessage{{Role: "system", Content: system}}, messages...)
+	}
+	reqBody := chatRequest{Model: model, MaxTokens: maxTokens, Messages: messages}
+
+	resp, err := c.doRequestRaw(reqBody)
+	if err != nil {
+		if strings.Contains(err.Error(), "429") && reqBody.Model == ModelFlash {
+			fmt.Printf("[AI Raw] Rate limited on %s, trying %s\n", ModelFlash, ModelFlashFallback)
+			reqBody.Model = ModelFlashFallback
+			resp, err = c.doRequestRaw(reqBody)
+		}
+	}
+	return resp, err
+}
+
+func (c *AIClient) doRequestRaw(reqBody chatRequest) (*AIResponse, error) {
+	body, err := json.Marshal(reqBody)
+	if err != nil {
+		return nil, fmt.Errorf("marshal request: %w", err)
+	}
+
+	req, err := http.NewRequest("POST", c.baseURL, bytes.NewReader(body))
+	if err != nil {
+		return nil, fmt.Errorf("create request: %w", err)
+	}
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("Authorization", "Bearer "+c.apiKey)
+
+	resp, err := c.httpClient.Do(req)
+	if err != nil {
+		return nil, fmt.Errorf("send request: %w", err)
+	}
+	defer resp.Body.Close()
+
+	respBody, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return nil, fmt.Errorf("read response: %w", err)
+	}
+
+	if resp.StatusCode != http.StatusOK {
+		return nil, fmt.Errorf("API returned status %d: %s", resp.StatusCode, string(respBody))
+	}
+
+	var chatResp chatResponse
+	if err := json.Unmarshal(respBody, &chatResp); err != nil {
+		return nil, fmt.Errorf("unmarshal response: %w", err)
+	}
+
+	if chatResp.Error != nil {
+		return nil, fmt.Errorf("API error: %s - %s", chatResp.Error.Code, chatResp.Error.Message)
+	}
+
+	if len(chatResp.Choices) == 0 {
+		return nil, fmt.Errorf("empty response from API")
+	}
+
+	content := strings.TrimSpace(chatResp.Choices[0].Message.Content)
+	reasoning := strings.TrimSpace(chatResp.Choices[0].Message.ReasoningContent)
+
+	var text string
+	switch {
+	case strings.Contains(content, "```sql"):
+		text = content
+	case strings.Contains(reasoning, "```sql"):
+		text = reasoning
+	case strings.Contains(content, "```"):
+		text = content
+	case strings.Contains(reasoning, "```"):
+		text = reasoning
+	case content != "":
+		text = content
+	case reasoning != "":
+		text = reasoning
+	default:
+		return nil, fmt.Errorf("empty response from API")
+	}
+
+	return &AIResponse{
+		Text:         text,
+		InputTokens:  chatResp.Usage.PromptTokens,
+		OutputTokens: chatResp.Usage.CompletionTokens,
+		Model:        reqBody.Model,
+	}, nil
+}
