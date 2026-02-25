@@ -353,6 +353,9 @@ func main() {
 	http.HandleFunc("/api/waves", corsMiddleware(withAuth(handlers.ListWavesHandler, "")))
 	http.HandleFunc("/api/waves/", corsMiddleware(withAuth(handlers.GetWaveDetailHandler, "")))
 
+	// Company users list
+	http.HandleFunc("/api/users", corsMiddleware(withAuth(handlers.ListUsersHandler, "")))
+
 	// RCA Module — specific routes BEFORE wildcards
 	http.HandleFunc("/api/rca/representatives", corsMiddleware(withAuth(handlers.ListOrCreateRCARepresentativesHandler, "")))
 	http.HandleFunc("/api/rca/routes", corsMiddleware(withAuth(handlers.ListOrCreateRCARoutesHandler, "")))

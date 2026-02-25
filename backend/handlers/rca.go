@@ -7,6 +7,50 @@ import (
 	"strings"
 )
 
+// ListUsersHandler handles GET /api/users — lists company users (non-rca + non-existing reps)
+func ListUsersHandler(db *sql.DB) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		companyID := GetCompanyIDFromContext(r)
+		if companyID == "" {
+			http.Error(w, "Company not found", http.StatusBadRequest)
+			return
+		}
+		if GetUserRoleFromContext(r) == "rca" {
+			http.Error(w, "Forbidden", http.StatusForbidden)
+			return
+		}
+		rows, err := db.Query(`
+			SELECT id, full_name, email, role
+			FROM users
+			WHERE company_id = $1
+			ORDER BY full_name ASC
+		`, companyID)
+		if err != nil {
+			http.Error(w, "Database error", http.StatusInternalServerError)
+			return
+		}
+		defer rows.Close()
+
+		type UserItem struct {
+			ID       int    `json:"id"`
+			FullName string `json:"full_name"`
+			Email    string `json:"email"`
+			Role     string `json:"role"`
+		}
+		var users []UserItem
+		for rows.Next() {
+			var u UserItem
+			rows.Scan(&u.ID, &u.FullName, &u.Email, &u.Role)
+			users = append(users, u)
+		}
+		if users == nil {
+			users = []UserItem{}
+		}
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode(map[string]interface{}{"items": users})
+	}
+}
+
 // -----------------------------------------------------------------------
 // Domain types
 // -----------------------------------------------------------------------
@@ -29,7 +73,13 @@ type RCARepresentative struct {
 }
 
 type CreateRepresentativeRequest struct {
-	UserID       int    `json:"user_id"`
+	// Existing user mode
+	UserID int `json:"user_id"`
+	// New user inline creation mode (used when user_id == 0)
+	FullName string `json:"full_name"`
+	Email    string `json:"email"`
+	Password string `json:"password"`
+	// Profile fields
 	VehicleType  string `json:"vehicle_type"`
 	VehiclePlate string `json:"vehicle_plate"`
 	Territory    string `json:"territory"`
@@ -218,18 +268,6 @@ func ListOrCreateRCARepresentativesHandler(db *sql.DB) http.HandlerFunc {
 				http.Error(w, "Invalid JSON", http.StatusBadRequest)
 				return
 			}
-			if req.UserID == 0 {
-				http.Error(w, "user_id is required", http.StatusBadRequest)
-				return
-			}
-
-			// Verify the user belongs to this company
-			var exists bool
-			db.QueryRow(`SELECT EXISTS(SELECT 1 FROM users WHERE id=$1 AND company_id=$2)`, req.UserID, companyID).Scan(&exists)
-			if !exists {
-				http.Error(w, "User not found in this company", http.StatusBadRequest)
-				return
-			}
 
 			tx, err := db.Begin()
 			if err != nil {
@@ -238,8 +276,46 @@ func ListOrCreateRCARepresentativesHandler(db *sql.DB) http.HandlerFunc {
 			}
 			defer tx.Rollback()
 
-			// Update user role to rca
-			tx.Exec(`UPDATE users SET role = 'rca' WHERE id = $1 AND company_id = $2`, req.UserID, companyID)
+			userID := req.UserID
+
+			if userID == 0 {
+				// Inline creation: full_name + email + password required
+				if strings.TrimSpace(req.FullName) == "" || strings.TrimSpace(req.Email) == "" || len(req.Password) < 6 {
+					http.Error(w, "Para criar novo usuário informe nome, e-mail e senha (mínimo 6 caracteres)", http.StatusBadRequest)
+					return
+				}
+				// Check e-mail uniqueness
+				var emailExists bool
+				tx.QueryRow(`SELECT EXISTS(SELECT 1 FROM users WHERE email=$1)`, strings.ToLower(req.Email)).Scan(&emailExists)
+				if emailExists {
+					http.Error(w, "E-mail já cadastrado no sistema", http.StatusConflict)
+					return
+				}
+				hash, err := HashPassword(req.Password)
+				if err != nil {
+					http.Error(w, "Erro ao processar senha", http.StatusInternalServerError)
+					return
+				}
+				err = tx.QueryRow(`
+					INSERT INTO users (company_id, full_name, email, password_hash, role)
+					VALUES ($1, $2, $3, $4, 'rca')
+					RETURNING id
+				`, companyID, strings.TrimSpace(req.FullName), strings.ToLower(strings.TrimSpace(req.Email)), hash).Scan(&userID)
+				if err != nil {
+					http.Error(w, "Erro ao criar usuário: "+err.Error(), http.StatusInternalServerError)
+					return
+				}
+			} else {
+				// Link existing user — verify they belong to this company
+				var exists bool
+				tx.QueryRow(`SELECT EXISTS(SELECT 1 FROM users WHERE id=$1 AND company_id=$2)`, userID, companyID).Scan(&exists)
+				if !exists {
+					http.Error(w, "Usuário não encontrado nesta empresa", http.StatusBadRequest)
+					return
+				}
+				// Promote role to rca
+				tx.Exec(`UPDATE users SET role = 'rca' WHERE id = $1 AND company_id = $2`, userID, companyID)
+			}
 
 			var repID int
 			err = tx.QueryRow(`
@@ -252,14 +328,14 @@ func ListOrCreateRCARepresentativesHandler(db *sql.DB) http.HandlerFunc {
 					phone = EXCLUDED.phone,
 					updated_at = NOW()
 				RETURNING id
-			`, companyID, req.UserID, req.VehicleType, req.VehiclePlate, req.Territory, req.Phone).Scan(&repID)
+			`, companyID, userID, req.VehicleType, req.VehiclePlate, req.Territory, req.Phone).Scan(&repID)
 			if err != nil {
-				http.Error(w, "Error creating representative: "+err.Error(), http.StatusInternalServerError)
+				http.Error(w, "Erro ao criar representante: "+err.Error(), http.StatusInternalServerError)
 				return
 			}
 
 			if err := tx.Commit(); err != nil {
-				http.Error(w, "Error committing", http.StatusInternalServerError)
+				http.Error(w, "Erro ao confirmar operação", http.StatusInternalServerError)
 				return
 			}
 
