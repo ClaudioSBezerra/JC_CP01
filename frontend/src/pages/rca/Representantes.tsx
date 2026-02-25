@@ -36,6 +36,15 @@ interface SystemUser {
 
 const EMPTY_PROFILE = { vehicle_type: '', vehicle_plate: '', territory: '', phone: '' };
 
+function Field({ label, children }: { label: string; children: React.ReactNode }) {
+  return (
+    <div className="space-y-0.5">
+      <Label className="text-xs text-muted-foreground">{label}</Label>
+      {children}
+    </div>
+  );
+}
+
 export default function Representantes() {
   const { token } = useAuth();
   const [reps, setReps] = useState<RCARepresentative[]>([]);
@@ -143,37 +152,30 @@ export default function Representantes() {
     }
   };
 
-  const F = ({ label, children }: { label: string; children: React.ReactNode }) => (
-    <div className="space-y-0.5">
-      <Label className="text-xs text-muted-foreground">{label}</Label>
-      {children}
-    </div>
-  );
-
   const profileFields = (
     vals: typeof EMPTY_PROFILE,
     set: (fn: (v: typeof EMPTY_PROFILE) => typeof EMPTY_PROFILE) => void
   ) => (
     <>
       <div className="grid grid-cols-2 gap-2">
-        <F label="Telefone">
+        <Field label="Telefone">
           <Input className="h-8 text-sm" placeholder="(XX) XXXXX-XXXX"
             value={vals.phone} onChange={e => set(v => ({ ...v, phone: e.target.value }))} />
-        </F>
-        <F label="Território / Região">
+        </Field>
+        <Field label="Território / Região">
           <Input className="h-8 text-sm" placeholder="Zona Norte"
             value={vals.territory} onChange={e => set(v => ({ ...v, territory: e.target.value }))} />
-        </F>
+        </Field>
       </div>
       <div className="grid grid-cols-2 gap-2">
-        <F label="Tipo de Veículo">
+        <Field label="Tipo de Veículo">
           <Input className="h-8 text-sm" placeholder="Carro, Moto..."
             value={vals.vehicle_type} onChange={e => set(v => ({ ...v, vehicle_type: e.target.value }))} />
-        </F>
-        <F label="Placa">
+        </Field>
+        <Field label="Placa">
           <Input className="h-8 text-sm" placeholder="ABC-1234"
             value={vals.vehicle_plate} onChange={e => set(v => ({ ...v, vehicle_plate: e.target.value }))} />
-        </F>
+        </Field>
       </div>
     </>
   );
@@ -254,19 +256,19 @@ export default function Representantes() {
               <div className="px-2 py-1.5 rounded bg-blue-50 border border-blue-200 text-xs text-blue-700">
                 Cria o login e o perfil RCA em uma única operação.
               </div>
-              <F label="Nome completo *">
+              <Field label="Nome completo *">
                 <Input className="h-8 text-sm" placeholder="João Silva"
                   value={newUser.full_name} onChange={e => setNewUser(v => ({ ...v, full_name: e.target.value }))} />
-              </F>
+              </Field>
               <div className="grid grid-cols-2 gap-2">
-                <F label="E-mail *">
+                <Field label="E-mail *">
                   <Input className="h-8 text-sm" type="email" placeholder="joao@jc.com.br"
                     value={newUser.email} onChange={e => setNewUser(v => ({ ...v, email: e.target.value }))} />
-                </F>
-                <F label="Senha *">
+                </Field>
+                <Field label="Senha *">
                   <Input className="h-8 text-sm" type="password" placeholder="Mín. 6 chars"
                     value={newUser.password} onChange={e => setNewUser(v => ({ ...v, password: e.target.value }))} />
-                </F>
+                </Field>
               </div>
               {profileFields(newUser, setNewUser as any)}
               <div className="flex gap-2 pt-1">
@@ -284,7 +286,7 @@ export default function Representantes() {
               <div className="px-2 py-1.5 rounded bg-amber-50 border border-amber-200 text-xs text-amber-700">
                 O usuário selecionado será promovido para <strong>rca</strong>.
               </div>
-              <F label="Usuário *">
+              <Field label="Usuário *">
                 <Select value={linkUser.user_id} onValueChange={v => setLinkUser(u => ({ ...u, user_id: v }))}>
                   <SelectTrigger className="h-8 text-sm">
                     <SelectValue placeholder="Selecione..." />
@@ -297,7 +299,7 @@ export default function Representantes() {
                     ))}
                   </SelectContent>
                 </Select>
-              </F>
+              </Field>
               {profileFields(linkUser, setLinkUser as any)}
               <div className="flex gap-2 pt-1">
                 <Button size="sm" onClick={handleSaveLink} disabled={saving} className="flex-1">
