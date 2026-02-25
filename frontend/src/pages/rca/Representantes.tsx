@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '../../contexts/AuthContext';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -34,29 +34,212 @@ interface SystemUser {
   role: string;
 }
 
-const EMPTY_PROFILE = { vehicle_type: '', vehicle_plate: '', territory: '', phone: '' };
+// ── Formulário: criar novo usuário RCA ───────────────────────────────────────
+function CreateForm({ token, onSaved, onCancel }: {
+  token: string;
+  onSaved: () => void;
+  onCancel: () => void;
+}) {
+  const [full_name, setFullName] = useState('');
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [phone, setPhone] = useState('');
+  const [territory, setTerritory] = useState('');
+  const [vehicle_type, setVehicleType] = useState('');
+  const [vehicle_plate, setVehiclePlate] = useState('');
+  const [saving, setSaving] = useState(false);
 
-function Field({ label, children }: { label: string; children: React.ReactNode }) {
+  const handleSave = async () => {
+    if (!full_name || !email || !password) {
+      toast.error('Nome, e-mail e senha são obrigatórios');
+      return;
+    }
+    if (password.length < 6) {
+      toast.error('Senha deve ter pelo menos 6 caracteres');
+      return;
+    }
+    setSaving(true);
+    try {
+      const res = await fetch('/api/rca/representatives', {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ full_name, email, password, phone, territory, vehicle_type, vehicle_plate }),
+      });
+      const data = await res.json();
+      if (res.ok) {
+        toast.success('Representante criado com sucesso');
+        onSaved();
+      } else {
+        toast.error(data.error || 'Erro ao criar representante');
+      }
+    } catch {
+      toast.error('Erro de conexão');
+    } finally {
+      setSaving(false);
+    }
+  };
+
   return (
-    <div className="space-y-0.5">
-      <Label className="text-xs text-muted-foreground">{label}</Label>
-      {children}
+    <div className="space-y-2">
+      <div className="px-2 py-1.5 rounded bg-blue-50 border border-blue-200 text-xs text-blue-700">
+        Cria o login e o perfil RCA em uma única operação.
+      </div>
+      <div className="space-y-0.5">
+        <Label className="text-xs text-muted-foreground">Nome completo *</Label>
+        <Input className="h-8 text-sm" placeholder="João Silva"
+          value={full_name} onChange={e => setFullName(e.target.value)} />
+      </div>
+      <div className="grid grid-cols-2 gap-2">
+        <div className="space-y-0.5">
+          <Label className="text-xs text-muted-foreground">E-mail *</Label>
+          <Input className="h-8 text-sm" placeholder="joao@jc.com.br"
+            value={email} onChange={e => setEmail(e.target.value)} />
+        </div>
+        <div className="space-y-0.5">
+          <Label className="text-xs text-muted-foreground">Senha *</Label>
+          <Input className="h-8 text-sm" type="password" placeholder="Mín. 6 chars"
+            value={password} onChange={e => setPassword(e.target.value)} />
+        </div>
+      </div>
+      <div className="grid grid-cols-2 gap-2">
+        <div className="space-y-0.5">
+          <Label className="text-xs text-muted-foreground">Telefone</Label>
+          <Input className="h-8 text-sm" placeholder="(XX) XXXXX-XXXX"
+            value={phone} onChange={e => setPhone(e.target.value)} />
+        </div>
+        <div className="space-y-0.5">
+          <Label className="text-xs text-muted-foreground">Território</Label>
+          <Input className="h-8 text-sm" placeholder="Zona Norte"
+            value={territory} onChange={e => setTerritory(e.target.value)} />
+        </div>
+      </div>
+      <div className="grid grid-cols-2 gap-2">
+        <div className="space-y-0.5">
+          <Label className="text-xs text-muted-foreground">Tipo de Veículo</Label>
+          <Input className="h-8 text-sm" placeholder="Carro, Moto..."
+            value={vehicle_type} onChange={e => setVehicleType(e.target.value)} />
+        </div>
+        <div className="space-y-0.5">
+          <Label className="text-xs text-muted-foreground">Placa</Label>
+          <Input className="h-8 text-sm" placeholder="ABC-1234"
+            value={vehicle_plate} onChange={e => setVehiclePlate(e.target.value)} />
+        </div>
+      </div>
+      <div className="flex gap-2 pt-1">
+        <Button size="sm" onClick={handleSave} disabled={saving} className="flex-1">
+          {saving ? 'Salvando...' : 'Criar Representante'}
+        </Button>
+        <Button size="sm" variant="outline" onClick={onCancel} disabled={saving}>
+          Cancelar
+        </Button>
+      </div>
     </div>
   );
 }
 
+// ── Formulário: vincular usuário existente ───────────────────────────────────
+function LinkForm({ token, users, onSaved, onCancel }: {
+  token: string;
+  users: SystemUser[];
+  onSaved: () => void;
+  onCancel: () => void;
+}) {
+  const [user_id, setUserId] = useState('');
+  const [phone, setPhone] = useState('');
+  const [territory, setTerritory] = useState('');
+  const [vehicle_type, setVehicleType] = useState('');
+  const [vehicle_plate, setVehiclePlate] = useState('');
+  const [saving, setSaving] = useState(false);
+
+  const handleSave = async () => {
+    if (!user_id) {
+      toast.error('Selecione um usuário');
+      return;
+    }
+    setSaving(true);
+    try {
+      const res = await fetch('/api/rca/representatives', {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ user_id: parseInt(user_id), phone, territory, vehicle_type, vehicle_plate }),
+      });
+      const data = await res.json();
+      if (res.ok) {
+        toast.success('Representante vinculado com sucesso');
+        onSaved();
+      } else {
+        toast.error(data.error || 'Erro ao vincular representante');
+      }
+    } catch {
+      toast.error('Erro de conexão');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <div className="space-y-2">
+      <div className="px-2 py-1.5 rounded bg-amber-50 border border-amber-200 text-xs text-amber-700">
+        O usuário selecionado será promovido para <strong>rca</strong>.
+      </div>
+      <div className="space-y-0.5">
+        <Label className="text-xs text-muted-foreground">Usuário *</Label>
+        <Select value={user_id} onValueChange={setUserId}>
+          <SelectTrigger className="h-8 text-sm">
+            <SelectValue placeholder="Selecione..." />
+          </SelectTrigger>
+          <SelectContent>
+            {users.map(u => (
+              <SelectItem key={u.id} value={String(u.id)} className="text-sm">
+                {u.full_name} — {u.email}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      </div>
+      <div className="grid grid-cols-2 gap-2">
+        <div className="space-y-0.5">
+          <Label className="text-xs text-muted-foreground">Telefone</Label>
+          <Input className="h-8 text-sm" placeholder="(XX) XXXXX-XXXX"
+            value={phone} onChange={e => setPhone(e.target.value)} />
+        </div>
+        <div className="space-y-0.5">
+          <Label className="text-xs text-muted-foreground">Território</Label>
+          <Input className="h-8 text-sm" placeholder="Zona Norte"
+            value={territory} onChange={e => setTerritory(e.target.value)} />
+        </div>
+      </div>
+      <div className="grid grid-cols-2 gap-2">
+        <div className="space-y-0.5">
+          <Label className="text-xs text-muted-foreground">Tipo de Veículo</Label>
+          <Input className="h-8 text-sm" placeholder="Carro, Moto..."
+            value={vehicle_type} onChange={e => setVehicleType(e.target.value)} />
+        </div>
+        <div className="space-y-0.5">
+          <Label className="text-xs text-muted-foreground">Placa</Label>
+          <Input className="h-8 text-sm" placeholder="ABC-1234"
+            value={vehicle_plate} onChange={e => setVehiclePlate(e.target.value)} />
+        </div>
+      </div>
+      <div className="flex gap-2 pt-1">
+        <Button size="sm" onClick={handleSave} disabled={saving} className="flex-1">
+          {saving ? 'Salvando...' : 'Vincular Representante'}
+        </Button>
+        <Button size="sm" variant="outline" onClick={onCancel} disabled={saving}>
+          Cancelar
+        </Button>
+      </div>
+    </div>
+  );
+}
+
+// ── Componente principal ─────────────────────────────────────────────────────
 export default function Representantes() {
   const { token } = useAuth();
   const [reps, setReps] = useState<RCARepresentative[]>([]);
   const [loading, setLoading] = useState(true);
   const [showDialog, setShowDialog] = useState(false);
-  const [saving, setSaving] = useState(false);
   const [users, setUsers] = useState<SystemUser[]>([]);
-
-  // New user form
-  const [newUser, setNewUser] = useState({ full_name: '', email: '', password: '', ...EMPTY_PROFILE });
-  // Link existing user form
-  const [linkUser, setLinkUser] = useState({ user_id: '', ...EMPTY_PROFILE });
 
   const fetchReps = useCallback(() => {
     fetch('/api/rca/representatives', { headers: { Authorization: `Bearer ${token}` } })
@@ -76,109 +259,11 @@ export default function Representantes() {
     fetchUsers();
   }, [fetchReps, fetchUsers]);
 
-  const handleSaveNew = async () => {
-    if (!newUser.full_name || !newUser.email || !newUser.password) {
-      toast.error('Nome, e-mail e senha são obrigatórios');
-      return;
-    }
-    if (newUser.password.length < 6) {
-      toast.error('Senha deve ter pelo menos 6 caracteres');
-      return;
-    }
-    setSaving(true);
-    try {
-      const res = await fetch('/api/rca/representatives', {
-        method: 'POST',
-        headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          full_name: newUser.full_name,
-          email: newUser.email,
-          password: newUser.password,
-          vehicle_type: newUser.vehicle_type,
-          vehicle_plate: newUser.vehicle_plate,
-          territory: newUser.territory,
-          phone: newUser.phone,
-        }),
-      });
-      const data = await res.json();
-      if (res.ok) {
-        toast.success('Representante criado com sucesso');
-        setShowDialog(false);
-        setNewUser({ full_name: '', email: '', password: '', ...EMPTY_PROFILE });
-        fetchReps();
-        fetchUsers();
-      } else {
-        toast.error(data.error || data || 'Erro ao criar representante');
-      }
-    } catch {
-      toast.error('Erro de conexão');
-    } finally {
-      setSaving(false);
-    }
+  const handleSaved = () => {
+    setShowDialog(false);
+    fetchReps();
+    fetchUsers();
   };
-
-  const handleSaveLink = async () => {
-    if (!linkUser.user_id) {
-      toast.error('Selecione um usuário');
-      return;
-    }
-    setSaving(true);
-    try {
-      const res = await fetch('/api/rca/representatives', {
-        method: 'POST',
-        headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          user_id: parseInt(linkUser.user_id),
-          vehicle_type: linkUser.vehicle_type,
-          vehicle_plate: linkUser.vehicle_plate,
-          territory: linkUser.territory,
-          phone: linkUser.phone,
-        }),
-      });
-      const data = await res.json();
-      if (res.ok) {
-        toast.success('Representante vinculado com sucesso');
-        setShowDialog(false);
-        setLinkUser({ user_id: '', ...EMPTY_PROFILE });
-        fetchReps();
-        fetchUsers();
-      } else {
-        toast.error(data.error || data || 'Erro ao vincular representante');
-      }
-    } catch {
-      toast.error('Erro de conexão');
-    } finally {
-      setSaving(false);
-    }
-  };
-
-  const profileFields = (
-    vals: typeof EMPTY_PROFILE,
-    set: (fn: (v: typeof EMPTY_PROFILE) => typeof EMPTY_PROFILE) => void
-  ) => (
-    <>
-      <div className="grid grid-cols-2 gap-2">
-        <Field label="Telefone">
-          <Input className="h-8 text-sm" placeholder="(XX) XXXXX-XXXX"
-            value={vals.phone} onChange={e => set(v => ({ ...v, phone: e.target.value }))} />
-        </Field>
-        <Field label="Território / Região">
-          <Input className="h-8 text-sm" placeholder="Zona Norte"
-            value={vals.territory} onChange={e => set(v => ({ ...v, territory: e.target.value }))} />
-        </Field>
-      </div>
-      <div className="grid grid-cols-2 gap-2">
-        <Field label="Tipo de Veículo">
-          <Input className="h-8 text-sm" placeholder="Carro, Moto..."
-            value={vals.vehicle_type} onChange={e => set(v => ({ ...v, vehicle_type: e.target.value }))} />
-        </Field>
-        <Field label="Placa">
-          <Input className="h-8 text-sm" placeholder="ABC-1234"
-            value={vals.vehicle_plate} onChange={e => set(v => ({ ...v, vehicle_plate: e.target.value }))} />
-        </Field>
-      </div>
-    </>
-  );
 
   return (
     <div className="space-y-6">
@@ -244,71 +329,16 @@ export default function Representantes() {
           <DialogHeader className="pb-1">
             <DialogTitle className="text-base">Novo Representante RCA</DialogTitle>
           </DialogHeader>
-
           <Tabs defaultValue="new">
-            <TabsList className="w-full h-8 text-xs">
+            <TabsList className="w-full h-8">
               <TabsTrigger value="new" className="flex-1 text-xs">Criar usuário</TabsTrigger>
               <TabsTrigger value="link" className="flex-1 text-xs">Vincular existente</TabsTrigger>
             </TabsList>
-
-            {/* Tab: criar novo usuário + perfil RCA */}
-            <TabsContent value="new" className="space-y-2 mt-2">
-              <div className="px-2 py-1.5 rounded bg-blue-50 border border-blue-200 text-xs text-blue-700">
-                Cria o login e o perfil RCA em uma única operação.
-              </div>
-              <Field label="Nome completo *">
-                <Input className="h-8 text-sm" placeholder="João Silva"
-                  value={newUser.full_name} onChange={e => setNewUser(v => ({ ...v, full_name: e.target.value }))} />
-              </Field>
-              <div className="grid grid-cols-2 gap-2">
-                <Field label="E-mail *">
-                  <Input className="h-8 text-sm" type="email" placeholder="joao@jc.com.br"
-                    value={newUser.email} onChange={e => setNewUser(v => ({ ...v, email: e.target.value }))} />
-                </Field>
-                <Field label="Senha *">
-                  <Input className="h-8 text-sm" type="password" placeholder="Mín. 6 chars"
-                    value={newUser.password} onChange={e => setNewUser(v => ({ ...v, password: e.target.value }))} />
-                </Field>
-              </div>
-              {profileFields(newUser, setNewUser as any)}
-              <div className="flex gap-2 pt-1">
-                <Button size="sm" onClick={handleSaveNew} disabled={saving} className="flex-1">
-                  {saving ? 'Salvando...' : 'Criar Representante'}
-                </Button>
-                <Button size="sm" variant="outline" onClick={() => setShowDialog(false)} disabled={saving}>
-                  Cancelar
-                </Button>
-              </div>
+            <TabsContent value="new" className="mt-2">
+              <CreateForm token={token!} onSaved={handleSaved} onCancel={() => setShowDialog(false)} />
             </TabsContent>
-
-            {/* Tab: vincular usuário já existente */}
-            <TabsContent value="link" className="space-y-2 mt-2">
-              <div className="px-2 py-1.5 rounded bg-amber-50 border border-amber-200 text-xs text-amber-700">
-                O usuário selecionado será promovido para <strong>rca</strong>.
-              </div>
-              <Field label="Usuário *">
-                <Select value={linkUser.user_id} onValueChange={v => setLinkUser(u => ({ ...u, user_id: v }))}>
-                  <SelectTrigger className="h-8 text-sm">
-                    <SelectValue placeholder="Selecione..." />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {users.map(u => (
-                      <SelectItem key={u.id} value={String(u.id)} className="text-sm">
-                        {u.full_name} — {u.email}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </Field>
-              {profileFields(linkUser, setLinkUser as any)}
-              <div className="flex gap-2 pt-1">
-                <Button size="sm" onClick={handleSaveLink} disabled={saving} className="flex-1">
-                  {saving ? 'Salvando...' : 'Vincular Representante'}
-                </Button>
-                <Button size="sm" variant="outline" onClick={() => setShowDialog(false)} disabled={saving}>
-                  Cancelar
-                </Button>
-              </div>
+            <TabsContent value="link" className="mt-2">
+              <LinkForm token={token!} users={users} onSaved={handleSaved} onCancel={() => setShowDialog(false)} />
             </TabsContent>
           </Tabs>
         </DialogContent>
