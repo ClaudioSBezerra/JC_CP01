@@ -52,7 +52,7 @@ jobs:
         env:
           RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN }}
         working-directory: frontend
-        run: railway up --service web
+        run: railway up --service web --detach
 
       - name: Generate domain for web service
         env:
