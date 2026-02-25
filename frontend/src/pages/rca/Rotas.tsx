@@ -9,7 +9,123 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { toast } from 'sonner';
-import { Plus, Trash2, Route, Users, ChevronDown, ChevronUp } from 'lucide-react';
+import { Plus, Trash2, Route, Users, ChevronDown, ChevronUp, Upload, Download } from 'lucide-react';
+
+// ── Componente de importação CSV (estado isolado para não perder foco) ───────
+function ImportDialog({ token, routeId, onImported, onClose }: {
+  token: string;
+  routeId: number;
+  onImported: () => void;
+  onClose: () => void;
+}) {
+  const [file, setFile] = useState<File | null>(null);
+  const [preview, setPreview] = useState<string[][]>([]);
+  const [importing, setImporting] = useState(false);
+
+  const HEADERS = ['company_name','contact_name','phone','city','neighborhood','address','address_number','priority','notes'];
+
+  const downloadTemplate = () => {
+    const rows = [
+      HEADERS.join(','),
+      'Mercado São João,Carlos Silva,(62) 99000-0001,Goiânia,Setor Norte,Rua 34,120,1,Cliente preferencial',
+      'Farmácia Central,Ana Lima,(62) 99000-0002,Goiânia,Centro,Av. Goiás,500,2,',
+    ];
+    const blob = new Blob([rows.join('\n')], { type: 'text/csv' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url; a.download = 'template_clientes_rota.csv'; a.click();
+    URL.revokeObjectURL(url);
+  };
+
+  const handleFile = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const f = e.target.files?.[0];
+    if (!f) return;
+    setFile(f);
+    const reader = new FileReader();
+    reader.onload = ev => {
+      const text = ev.target?.result as string;
+      const rows = text.trim().split('\n').map(r => r.split(',').map(c => c.trim()));
+      setPreview(rows.slice(0, 6)); // header + até 5 linhas de preview
+    };
+    reader.readAsText(f);
+  };
+
+  const handleImport = async () => {
+    if (!file) { toast.error('Selecione um arquivo CSV'); return; }
+    setImporting(true);
+    try {
+      const form = new FormData();
+      form.append('file', file);
+      const res = await fetch(`/api/rca/routes/${routeId}/customers/import`, {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${token}` },
+        body: form,
+      });
+      const data = await res.json();
+      if (res.ok) {
+        toast.success(data.message || 'Importação concluída');
+        onImported();
+      } else {
+        toast.error(data.error || 'Erro na importação');
+      }
+    } catch {
+      toast.error('Erro de conexão');
+    } finally {
+      setImporting(false);
+    }
+  };
+
+  return (
+    <div className="space-y-3">
+      <div className="flex items-center justify-between">
+        <p className="text-xs text-muted-foreground">
+          Faça upload de um CSV com os clientes da rota.
+        </p>
+        <Button variant="outline" size="sm" onClick={downloadTemplate}>
+          <Download className="h-3 w-3 mr-1" /> Template
+        </Button>
+      </div>
+
+      <div className="p-2 rounded border border-dashed bg-muted/40 text-xs text-muted-foreground font-mono">
+        company_name, contact_name, phone, city, neighborhood, address, address_number, priority, notes
+      </div>
+
+      <input
+        type="file"
+        accept=".csv,text/csv"
+        onChange={handleFile}
+        className="block w-full text-sm text-muted-foreground file:mr-3 file:py-1 file:px-3 file:rounded file:border-0 file:text-xs file:bg-primary file:text-primary-foreground cursor-pointer"
+      />
+
+      {preview.length > 0 && (
+        <div className="overflow-x-auto rounded border text-xs">
+          <table className="w-full">
+            <thead className="bg-muted">
+              <tr>{preview[0].map((h, i) => <th key={i} className="px-2 py-1 text-left font-medium">{h}</th>)}</tr>
+            </thead>
+            <tbody>
+              {preview.slice(1).map((row, ri) => (
+                <tr key={ri} className="border-t">
+                  {row.map((c, ci) => <td key={ci} className="px-2 py-1 truncate max-w-[100px]">{c}</td>)}
+                </tr>
+              ))}
+            </tbody>
+          </table>
+          {preview.length > 5 && <p className="text-center text-muted-foreground py-1">…</p>}
+        </div>
+      )}
+
+      <div className="flex gap-2 pt-1">
+        <Button size="sm" onClick={handleImport} disabled={importing || !file} className="flex-1">
+          {importing ? 'Importando...' : 'Importar Clientes'}
+        </Button>
+        <Button size="sm" variant="outline" onClick={onClose} disabled={importing}>
+          Cancelar
+        </Button>
+      </div>
+    </div>
+  );
+}
 
 interface RCARepresentative {
   id: number;
@@ -48,6 +164,7 @@ export default function Rotas() {
   const [customers, setCustomers] = useState<Record<number, RCACustomer[]>>({});
   const [showRouteDialog, setShowRouteDialog] = useState(false);
   const [showCustomerDialog, setShowCustomerDialog] = useState<number | null>(null);
+  const [showImportDialog, setShowImportDialog] = useState<number | null>(null);
   const [saving, setSaving] = useState(false);
 
   const [routeForm, setRouteForm] = useState({ name: '', description: '' });
@@ -211,6 +328,10 @@ export default function Rotas() {
                 <Badge variant="outline">{route.customer_count} clientes</Badge>
               </div>
               <div className="flex items-center gap-2">
+                <Button variant="outline" size="sm" onClick={() => setShowImportDialog(route.id)}>
+                  <Upload className="h-3 w-3 mr-1" />
+                  Importar
+                </Button>
                 <Button variant="outline" size="sm" onClick={() => { setShowCustomerDialog(route.id); }}>
                   <Plus className="h-3 w-3 mr-1" />
                   Cliente
@@ -301,6 +422,30 @@ export default function Rotas() {
               <Button variant="outline" onClick={() => setShowRouteDialog(false)}>Cancelar</Button>
             </div>
           </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Import CSV Dialog */}
+      <Dialog open={showImportDialog !== null} onOpenChange={open => !open && setShowImportDialog(null)}>
+        <DialogContent className="max-w-lg">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Upload className="h-4 w-4" />
+              Importar Clientes via CSV
+            </DialogTitle>
+          </DialogHeader>
+          {showImportDialog !== null && (
+            <ImportDialog
+              token={token!}
+              routeId={showImportDialog}
+              onImported={() => {
+                fetchCustomers(showImportDialog!);
+                fetchRoutes();
+                setShowImportDialog(null);
+              }}
+              onClose={() => setShowImportDialog(null)}
+            />
+          )}
         </DialogContent>
       </Dialog>
 

@@ -374,6 +374,12 @@ func main() {
 		}
 		path := strings.TrimPrefix(r.URL.Path, "/api/rca/routes/")
 		parts := strings.Split(path, "/")
+		// /routes/:id/customers/import
+		if len(parts) == 3 && parts[1] == "customers" && parts[2] == "import" && r.Method == http.MethodPost {
+			handlers.AuthMiddleware(handlers.ImportRCACustomersHandler(database), "")(w, r)
+			return
+		}
+		// /routes/:id/customers
 		if len(parts) == 2 && parts[1] == "customers" {
 			switch r.Method {
 			case http.MethodGet:

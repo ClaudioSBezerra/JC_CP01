@@ -2,8 +2,10 @@ package handlers
 
 import (
 	"database/sql"
+	"encoding/csv"
 	"encoding/json"
 	"net/http"
+	"strconv"
 	"strings"
 )
 
@@ -579,6 +581,132 @@ func DeleteRCACustomerHandler(db *sql.DB) http.HandlerFunc {
 
 		w.Header().Set("Content-Type", "application/json")
 		json.NewEncoder(w).Encode(map[string]string{"message": "Cliente removido com sucesso"})
+	}
+}
+
+// ImportRCACustomersHandler handles POST /api/rca/routes/:id/customers/import
+// Accepts multipart/form-data with field "file" (CSV).
+// CSV columns (header required):
+//   company_name, contact_name, phone, city, neighborhood, address, address_number, priority, notes
+func ImportRCACustomersHandler(db *sql.DB) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		companyID := GetCompanyIDFromContext(r)
+		if companyID == "" {
+			http.Error(w, "Company not found", http.StatusBadRequest)
+			return
+		}
+		if GetUserRoleFromContext(r) == "rca" {
+			http.Error(w, "Forbidden", http.StatusForbidden)
+			return
+		}
+
+		// Extract route ID from path: /api/rca/routes/:id/customers/import
+		path := strings.TrimPrefix(r.URL.Path, "/api/rca/routes/")
+		parts := strings.Split(path, "/")
+		if len(parts) < 3 {
+			http.Error(w, "Invalid path", http.StatusBadRequest)
+			return
+		}
+		routeID := parts[0]
+
+		// Verify route belongs to company
+		var exists bool
+		db.QueryRow(`SELECT EXISTS(SELECT 1 FROM rca_routes WHERE id=$1 AND company_id=$2)`, routeID, companyID).Scan(&exists)
+		if !exists {
+			http.Error(w, "Route not found", http.StatusNotFound)
+			return
+		}
+
+		if err := r.ParseMultipartForm(5 << 20); err != nil {
+			http.Error(w, "Failed to parse form", http.StatusBadRequest)
+			return
+		}
+		file, _, err := r.FormFile("file")
+		if err != nil {
+			http.Error(w, "File 'file' not found in request", http.StatusBadRequest)
+			return
+		}
+		defer file.Close()
+
+		reader := csv.NewReader(file)
+		reader.TrimLeadingSpace = true
+		records, err := reader.ReadAll()
+		if err != nil {
+			http.Error(w, "Invalid CSV: "+err.Error(), http.StatusBadRequest)
+			return
+		}
+		if len(records) < 2 {
+			http.Error(w, "CSV must have header + at least one data row", http.StatusBadRequest)
+			return
+		}
+
+		// Map header columns
+		header := records[0]
+		idx := map[string]int{}
+		for i, h := range header {
+			idx[strings.ToLower(strings.TrimSpace(h))] = i
+		}
+		col := func(row []string, name string) string {
+			i, ok := idx[name]
+			if !ok || i >= len(row) {
+				return ""
+			}
+			return strings.TrimSpace(row[i])
+		}
+
+		tx, err := db.Begin()
+		if err != nil {
+			http.Error(w, "Database error", http.StatusInternalServerError)
+			return
+		}
+		defer tx.Rollback()
+
+		imported := 0
+		skipped := 0
+		for _, row := range records[1:] {
+			name := col(row, "company_name")
+			if name == "" {
+				skipped++
+				continue
+			}
+			priority := 1
+			if p, err := strconv.Atoi(col(row, "priority")); err == nil && p > 0 {
+				priority = p
+			}
+			_, err := tx.Exec(`
+				INSERT INTO rca_customers
+					(company_id, route_id, company_name, contact_name, phone,
+					 city, neighborhood, address, address_number, priority, notes)
+				VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11)
+			`, companyID, routeID,
+				name,
+				col(row, "contact_name"),
+				col(row, "phone"),
+				col(row, "city"),
+				col(row, "neighborhood"),
+				col(row, "address"),
+				col(row, "address_number"),
+				priority,
+				col(row, "notes"),
+			)
+			if err != nil {
+				skipped++
+			} else {
+				imported++
+			}
+		}
+
+		if err := tx.Commit(); err != nil {
+			http.Error(w, "Error committing", http.StatusInternalServerError)
+			return
+		}
+
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode(map[string]interface{}{
+			"imported": imported,
+			"skipped":  skipped,
+			"message":  strconv.Itoa(imported) + " cliente(s) importado(s) com sucesso",
+		})
 	}
 }
 

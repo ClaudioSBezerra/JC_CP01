@@ -1,0 +1,6 @@
+company_name,contact_name,phone,city,neighborhood,address,address_number,priority,notes
+Mercado São João,Carlos Silva,(62) 99000-0001,Goiânia,Setor Norte,Rua 34,120,1,Cliente preferencial
+Farmácia Central,Ana Lima,(62) 99000-0002,Goiânia,Centro,Av. Goiás,500,2,
+Distribuidora Brasil,João Souza,(62) 99000-0003,Goiânia,Jardim América,Rua T-30,320,3,Visitar na parte da tarde
+Padaria Pão Quente,Maria Oliveira,(62) 99000-0004,Goiânia,Setor Leste,Rua 135,890,4,
+Mercado do Bairro,,,(62) 99000-0005,Goiânia,Setor Bueno,Rua 9,450,5,
