@@ -9,8 +9,17 @@ import (
 	"strings"
 )
 
-// ListUsersHandler handles GET /api/users — lists company users (non-rca + non-existing reps)
+// ListUsersHandler handles GET/POST /api/users
+// GET  — lista usuários da empresa
+// POST — cria novo usuário na mesma empresa do admin
 func ListUsersHandler(db *sql.DB) http.HandlerFunc {
+	type UserItem struct {
+		ID       int    `json:"id"`
+		FullName string `json:"full_name"`
+		Email    string `json:"email"`
+		Role     string `json:"role"`
+	}
+
 	return func(w http.ResponseWriter, r *http.Request) {
 		companyID := GetCompanyIDFromContext(r)
 		if companyID == "" {
@@ -21,35 +30,119 @@ func ListUsersHandler(db *sql.DB) http.HandlerFunc {
 			http.Error(w, "Forbidden", http.StatusForbidden)
 			return
 		}
-		rows, err := db.Query(`
-			SELECT id, full_name, email, role
-			FROM users
-			WHERE company_id = $1
-			ORDER BY full_name ASC
-		`, companyID)
+
+		switch r.Method {
+		case http.MethodGet:
+			rows, err := db.Query(`
+				SELECT id, full_name, email, role
+				FROM users
+				WHERE company_id = $1
+				ORDER BY full_name ASC
+			`, companyID)
+			if err != nil {
+				http.Error(w, "Database error", http.StatusInternalServerError)
+				return
+			}
+			defer rows.Close()
+			var users []UserItem
+			for rows.Next() {
+				var u UserItem
+				rows.Scan(&u.ID, &u.FullName, &u.Email, &u.Role)
+				users = append(users, u)
+			}
+			if users == nil {
+				users = []UserItem{}
+			}
+			w.Header().Set("Content-Type", "application/json")
+			json.NewEncoder(w).Encode(map[string]interface{}{"items": users})
+
+		case http.MethodPost:
+			var req struct {
+				FullName string `json:"full_name"`
+				Email    string `json:"email"`
+				Password string `json:"password"`
+				Role     string `json:"role"`
+			}
+			if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+				http.Error(w, "Invalid JSON", http.StatusBadRequest)
+				return
+			}
+			if strings.TrimSpace(req.FullName) == "" || strings.TrimSpace(req.Email) == "" || len(req.Password) < 6 {
+				http.Error(w, "Nome, e-mail e senha (mín. 6 chars) são obrigatórios", http.StatusBadRequest)
+				return
+			}
+			role := req.Role
+			if role == "" {
+				role = "admin"
+			}
+
+			var emailExists bool
+			db.QueryRow(`SELECT EXISTS(SELECT 1 FROM users WHERE email=$1)`, strings.ToLower(req.Email)).Scan(&emailExists)
+			if emailExists {
+				http.Error(w, "E-mail já cadastrado no sistema", http.StatusConflict)
+				return
+			}
+
+			hash, err := HashPassword(req.Password)
+			if err != nil {
+				http.Error(w, "Erro ao processar senha", http.StatusInternalServerError)
+				return
+			}
+
+			var newID int
+			err = db.QueryRow(`
+				INSERT INTO users (company_id, full_name, email, password_hash, role)
+				VALUES ($1, $2, $3, $4, $5)
+				RETURNING id
+			`, companyID, strings.TrimSpace(req.FullName), strings.ToLower(strings.TrimSpace(req.Email)), hash, role).Scan(&newID)
+			if err != nil {
+				http.Error(w, "Erro ao criar usuário: "+err.Error(), http.StatusInternalServerError)
+				return
+			}
+
+			w.Header().Set("Content-Type", "application/json")
+			json.NewEncoder(w).Encode(map[string]interface{}{
+				"id":      newID,
+				"message": "Usuário criado com sucesso",
+			})
+
+		default:
+			http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+		}
+	}
+}
+
+// UpdateUserRoleHandler handles PUT /api/users/:id/role
+func UpdateUserRoleHandler(db *sql.DB) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		companyID := GetCompanyIDFromContext(r)
+		if companyID == "" || GetUserRoleFromContext(r) == "rca" {
+			http.Error(w, "Forbidden", http.StatusForbidden)
+			return
+		}
+		userID := strings.TrimPrefix(r.URL.Path, "/api/users/")
+		userID = strings.TrimSuffix(userID, "/role")
+
+		var req struct {
+			Role string `json:"role"`
+		}
+		if err := json.NewDecoder(r.Body).Decode(&req); err != nil || req.Role == "" {
+			http.Error(w, "role é obrigatório", http.StatusBadRequest)
+			return
+		}
+
+		res, err := db.Exec(`UPDATE users SET role=$1 WHERE id=$2 AND company_id=$3`, req.Role, userID, companyID)
 		if err != nil {
 			http.Error(w, "Database error", http.StatusInternalServerError)
 			return
 		}
-		defer rows.Close()
-
-		type UserItem struct {
-			ID       int    `json:"id"`
-			FullName string `json:"full_name"`
-			Email    string `json:"email"`
-			Role     string `json:"role"`
-		}
-		var users []UserItem
-		for rows.Next() {
-			var u UserItem
-			rows.Scan(&u.ID, &u.FullName, &u.Email, &u.Role)
-			users = append(users, u)
-		}
-		if users == nil {
-			users = []UserItem{}
+		n, _ := res.RowsAffected()
+		if n == 0 {
+			http.Error(w, "Usuário não encontrado", http.StatusNotFound)
+			return
 		}
 		w.Header().Set("Content-Type", "application/json")
-		json.NewEncoder(w).Encode(map[string]interface{}{"items": users})
+		json.NewEncoder(w).Encode(map[string]string{"message": "Perfil atualizado"})
 	}
 }
 

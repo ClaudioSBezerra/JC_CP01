@@ -30,6 +30,7 @@ import {
   BarChart3,
   Users,
   Route,
+  UserCog,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Separator } from '@/components/ui/separator';
@@ -68,6 +69,12 @@ export function AppSidebar() {
         { title: 'Dashboard Comercial', icon: BarChart3, href: '/rca' },
         { title: 'Representantes', icon: Users, href: '/rca/representantes' },
         { title: 'Rotas de Visita', icon: Route, href: '/rca/rotas' },
+      ],
+    },
+    {
+      group: 'Sistema',
+      items: [
+        { title: 'Gestão de Usuários', icon: UserCog, href: '/usuarios' },
       ],
     },
   ];

@@ -22,6 +22,7 @@ import DashboardPicking from './pages/picking/DashboardPicking';
 import EnderecosPicking from './pages/picking/EnderecosPicking';
 import OndasReabastecimento from './pages/picking/OndasReabastecimento';
 import ConfiguracoesPicking from './pages/picking/ConfiguracoesPicking';
+import Usuarios from './pages/Usuarios';
 import DashboardComercial from './pages/rca/DashboardComercial';
 import Representantes from './pages/rca/Representantes';
 import Rotas from './pages/rca/Rotas';
@@ -74,6 +75,7 @@ function AppLayout() {
             <Route path="/consulta-produtos" element={<ConsultaProdutos />} />
             <Route path="/consulta-inteligente" element={<ConsultaInteligente />} />
             <Route path="/configuracoes" element={<Configuracoes />} />
+            <Route path="/usuarios" element={<Usuarios />} />
             <Route path="/picking" element={<DashboardPicking />} />
             <Route path="/picking/enderecos" element={<EnderecosPicking />} />
             <Route path="/picking/ondas" element={<OndasReabastecimento />} />
