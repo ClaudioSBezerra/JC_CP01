@@ -686,37 +686,58 @@ func DeleteRCACustomerHandler(db *sql.DB) http.HandlerFunc {
 
 // geocodeAddress queries Nominatim to get lat/lng for a Brazilian address.
 // Returns nil, nil if not found or on error.
+// Tries multiple query strategies to handle informal Brazilian addresses.
 func geocodeAddress(address, addressNumber, neighborhood, city string) (*float64, *float64) {
-	q := strings.Join([]string{address, addressNumber, neighborhood, city, "Brasil"}, ", ")
-	apiURL := "https://nominatim.openstreetmap.org/search?format=json&limit=1&q=" + url.QueryEscape(q)
+	client := &http.Client{Timeout: 8 * time.Second}
 
-	client := &http.Client{Timeout: 5 * time.Second}
-	req, err := http.NewRequest("GET", apiURL, nil)
-	if err != nil {
-		return nil, nil
+	doRequest := func(apiURL string) (*float64, *float64) {
+		req, err := http.NewRequest("GET", apiURL, nil)
+		if err != nil {
+			return nil, nil
+		}
+		req.Header.Set("User-Agent", "JCInteligenc/2.0 (fbinteligenc.id)")
+		resp, err := client.Do(req)
+		if err != nil {
+			log.Printf("[Geocode] HTTP error: %v", err)
+			return nil, nil
+		}
+		defer resp.Body.Close()
+		var results []struct {
+			Lat string `json:"lat"`
+			Lon string `json:"lon"`
+		}
+		if err := json.NewDecoder(resp.Body).Decode(&results); err != nil || len(results) == 0 {
+			return nil, nil
+		}
+		lat, err1 := strconv.ParseFloat(results[0].Lat, 64)
+		lng, err2 := strconv.ParseFloat(results[0].Lon, 64)
+		if err1 != nil || err2 != nil {
+			return nil, nil
+		}
+		return &lat, &lng
 	}
-	req.Header.Set("User-Agent", "JCInteligenc/2.0 (fbinteligenc.id)")
 
-	resp, err := client.Do(req)
-	if err != nil {
-		return nil, nil
-	}
-	defer resp.Body.Close()
+	base := "https://nominatim.openstreetmap.org/search?format=json&limit=1&countrycodes=br"
 
-	var results []struct {
-		Lat string `json:"lat"`
-		Lon string `json:"lon"`
+	// Strategy 1: structured query (street + number + city)
+	street := address
+	if addressNumber != "" {
+		street += " " + addressNumber
 	}
-	if err := json.NewDecoder(resp.Body).Decode(&results); err != nil || len(results) == 0 {
-		return nil, nil
+	q1 := base + "&street=" + url.QueryEscape(street) + "&city=" + url.QueryEscape(city)
+	if lat, lng := doRequest(q1); lat != nil {
+		return lat, lng
 	}
 
-	lat, err1 := strconv.ParseFloat(results[0].Lat, 64)
-	lng, err2 := strconv.ParseFloat(results[0].Lon, 64)
-	if err1 != nil || err2 != nil {
-		return nil, nil
+	time.Sleep(1100 * time.Millisecond)
+
+	// Strategy 2: free-form with just neighborhood + city
+	q2 := base + "&q=" + url.QueryEscape(neighborhood+", "+city+", Brasil")
+	if lat, lng := doRequest(q2); lat != nil {
+		return lat, lng
 	}
-	return &lat, &lng
+
+	return nil, nil
 }
 
 // geocodeCustomers updates lat/lng for customers without coordinates using Nominatim.
