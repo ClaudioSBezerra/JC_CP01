@@ -98,6 +98,7 @@ export default function Register() {
                 <option value="comprador">Comprador</option>
                 <option value="aprovador">Aprovador / Gerente</option>
                 <option value="admin">Administrador</option>
+                <option value="rca">RCA — Representante Comercial</option>
               </select>
             </div>
             <Button type="submit" className="w-full" disabled={loading}>
