@@ -6,9 +6,12 @@ import (
 	"encoding/csv"
 	"encoding/json"
 	"io"
+	"log"
 	"net/http"
+	"net/url"
 	"strconv"
 	"strings"
+	"time"
 )
 
 // ListUsersHandler handles GET/POST /api/users
@@ -681,6 +684,86 @@ func DeleteRCACustomerHandler(db *sql.DB) http.HandlerFunc {
 	}
 }
 
+// geocodeAddress queries Nominatim to get lat/lng for a Brazilian address.
+// Returns nil, nil if not found or on error.
+func geocodeAddress(address, addressNumber, neighborhood, city string) (*float64, *float64) {
+	q := strings.Join([]string{address, addressNumber, neighborhood, city, "Brasil"}, ", ")
+	apiURL := "https://nominatim.openstreetmap.org/search?format=json&limit=1&q=" + url.QueryEscape(q)
+
+	client := &http.Client{Timeout: 5 * time.Second}
+	req, err := http.NewRequest("GET", apiURL, nil)
+	if err != nil {
+		return nil, nil
+	}
+	req.Header.Set("User-Agent", "JCInteligenc/2.0 (fbinteligenc.id)")
+
+	resp, err := client.Do(req)
+	if err != nil {
+		return nil, nil
+	}
+	defer resp.Body.Close()
+
+	var results []struct {
+		Lat string `json:"lat"`
+		Lon string `json:"lon"`
+	}
+	if err := json.NewDecoder(resp.Body).Decode(&results); err != nil || len(results) == 0 {
+		return nil, nil
+	}
+
+	lat, err1 := strconv.ParseFloat(results[0].Lat, 64)
+	lng, err2 := strconv.ParseFloat(results[0].Lon, 64)
+	if err1 != nil || err2 != nil {
+		return nil, nil
+	}
+	return &lat, &lng
+}
+
+// geocodeCustomers updates lat/lng for customers without coordinates using Nominatim.
+// Runs in background — respects Nominatim's 1 req/sec rate limit.
+func geocodeCustomers(db *sql.DB, routeID string) {
+	rows, err := db.Query(`
+		SELECT id, address, address_number, neighborhood, city
+		FROM rca_customers
+		WHERE route_id = $1 AND lat IS NULL AND is_active = TRUE
+	`, routeID)
+	if err != nil {
+		log.Printf("[Geocode] query error: %v", err)
+		return
+	}
+	defer rows.Close()
+
+	type customer struct {
+		id            int
+		address       string
+		addressNumber string
+		neighborhood  string
+		city          string
+	}
+	var customers []customer
+	for rows.Next() {
+		var c customer
+		if err := rows.Scan(&c.id, &c.address, &c.addressNumber, &c.neighborhood, &c.city); err == nil {
+			customers = append(customers, c)
+		}
+	}
+
+	for _, c := range customers {
+		time.Sleep(1100 * time.Millisecond) // Nominatim rate limit: 1 req/sec
+		lat, lng := geocodeAddress(c.address, c.addressNumber, c.neighborhood, c.city)
+		if lat == nil {
+			log.Printf("[Geocode] not found: %s %s, %s", c.address, c.addressNumber, c.city)
+			continue
+		}
+		_, err := db.Exec(`UPDATE rca_customers SET lat=$1, lng=$2 WHERE id=$3`, lat, lng, c.id)
+		if err != nil {
+			log.Printf("[Geocode] update error id=%d: %v", c.id, err)
+		} else {
+			log.Printf("[Geocode] ok id=%d: %.6f, %.6f", c.id, *lat, *lng)
+		}
+	}
+}
+
 // ImportRCACustomersHandler handles POST /api/rca/routes/:id/customers/import
 // Accepts multipart/form-data with field "file" (CSV).
 // CSV columns (header required):
@@ -814,6 +897,9 @@ func ImportRCACustomersHandler(db *sql.DB) http.HandlerFunc {
 			jsonErr("Erro ao salvar dados", http.StatusInternalServerError)
 			return
 		}
+
+		// Geocode addresses in background (Nominatim, 1 req/sec)
+		go geocodeCustomers(db, routeID)
 
 		w.Header().Set("Content-Type", "application/json")
 		json.NewEncoder(w).Encode(map[string]interface{}{
