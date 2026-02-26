@@ -1,4 +1,4 @@
-name: CI
+name: CI/CD
 
 on:
   push:
@@ -21,3 +21,15 @@ jobs:
       - name: Build backend
         working-directory: backend
         run: go build ./...
+
+  deploy:
+    name: Deploy to Coolify
+    needs: build-check
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Trigger Coolify deploy
+        run: |
+          curl -s -X GET \
+            -H "Authorization: Bearer ${{ secrets.COOLIFY_TOKEN }}" \
+            "http://76.13.171.196:8000/api/v1/deploy?uuid=zc4ggkoocwc0k8wc004cw0o8&force=false"
