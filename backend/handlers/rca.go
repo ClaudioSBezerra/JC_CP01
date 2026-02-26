@@ -891,11 +891,24 @@ func ImportRCACustomersHandler(db *sql.DB) http.HandlerFunc {
 			if p, err := strconv.Atoi(col(row, "priority")); err == nil && p > 0 {
 				priority = p
 			}
+			// Parse optional lat/lng columns
+			var lat, lng *float64
+			if v := col(row, "lat"); v != "" {
+				if f, err := strconv.ParseFloat(strings.ReplaceAll(v, ",", "."), 64); err == nil {
+					lat = &f
+				}
+			}
+			if v := col(row, "lng"); v != "" {
+				if f, err := strconv.ParseFloat(strings.ReplaceAll(v, ",", "."), 64); err == nil {
+					lng = &f
+				}
+			}
 			_, err := tx.Exec(`
 				INSERT INTO rca_customers
 					(company_id, route_id, company_name, contact_name, phone,
-					 city, neighborhood, address, address_number, priority, notes)
-				VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11)
+					 city, neighborhood, address, address_number, lat, lng, priority, notes)
+				VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13)
+				ON CONFLICT DO NOTHING
 			`, companyID, routeID,
 				name,
 				col(row, "contact_name"),
@@ -904,6 +917,7 @@ func ImportRCACustomersHandler(db *sql.DB) http.HandlerFunc {
 				col(row, "neighborhood"),
 				col(row, "address"),
 				col(row, "address_number"),
+				lat, lng,
 				priority,
 				col(row, "notes"),
 			)

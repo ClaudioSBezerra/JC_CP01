@@ -22,7 +22,7 @@ function ImportDialog({ token, routeId, onImported, onClose }: {
   const [preview, setPreview] = useState<string[][]>([]);
   const [importing, setImporting] = useState(false);
 
-  const HEADERS = ['company_name','contact_name','phone','city','neighborhood','address','address_number','priority','notes'];
+  const HEADERS = ['company_name','contact_name','phone','city','neighborhood','address','address_number','priority','notes','lat','lng'];
 
   const downloadTemplate = () => {
     const rows = [
@@ -154,6 +154,8 @@ interface RCACustomer {
   neighborhood: string;
   address: string;
   address_number: string;
+  lat: number | null;
+  lng: number | null;
   priority: number;
   notes: string;
 }
@@ -195,6 +197,7 @@ export default function Rotas() {
   const [customerForm, setCustomerForm] = useState({
     company_name: '', contact_name: '', phone: '',
     city: '', neighborhood: '', address: '', address_number: '',
+    lat: '', lng: '',
     priority: '1', notes: '',
   });
 
@@ -269,13 +272,18 @@ export default function Rotas() {
       const res = await fetch(`/api/rca/routes/${routeId}/customers`, {
         method: 'POST',
         headers: { ...headers, 'Content-Type': 'application/json' },
-        body: JSON.stringify({ ...customerForm, priority: parseInt(customerForm.priority) }),
+        body: JSON.stringify({
+          ...customerForm,
+          priority: parseInt(customerForm.priority),
+          lat: customerForm.lat !== '' ? parseFloat(customerForm.lat.replace(',', '.')) : null,
+          lng: customerForm.lng !== '' ? parseFloat(customerForm.lng.replace(',', '.')) : null,
+        }),
       });
       const data = await res.json();
       if (res.ok) {
         toast.success('Cliente adicionado com sucesso');
         setShowCustomerDialog(null);
-        setCustomerForm({ company_name: '', contact_name: '', phone: '', city: '', neighborhood: '', address: '', address_number: '', priority: '1', notes: '' });
+        setCustomerForm({ company_name: '', contact_name: '', phone: '', city: '', neighborhood: '', address: '', address_number: '', lat: '', lng: '', priority: '1', notes: '' });
         fetchCustomers(routeId);
         fetchRoutes();
       } else {
@@ -392,6 +400,7 @@ export default function Rotas() {
                       <TableHead>Cidade / Bairro</TableHead>
                       <TableHead>Endereço</TableHead>
                       <TableHead>Telefone</TableHead>
+                      <TableHead className="w-8" title="GPS cadastrado">📍</TableHead>
                       <TableHead></TableHead>
                     </TableRow>
                   </TableHeader>
@@ -412,6 +421,11 @@ export default function Rotas() {
                           {[c.address, c.address_number].filter(Boolean).join(', ') || '—'}
                         </TableCell>
                         <TableCell className="text-sm">{c.phone || '—'}</TableCell>
+                        <TableCell className="text-center">
+                          <span title={c.lat ? `${c.lat}, ${c.lng}` : 'Sem coordenadas'}>
+                            {c.lat ? '🟢' : '⚪'}
+                          </span>
+                        </TableCell>
                         <TableCell>
                           <Button
                             variant="ghost"
@@ -533,6 +547,21 @@ export default function Rotas() {
                 <Label>Prioridade (1 = primeiro a visitar)</Label>
                 <Input type="number" min="1" value={customerForm.priority}
                   onChange={e => setCustomerForm(f => ({ ...f, priority: e.target.value }))} />
+              </div>
+              <div className="col-span-2 space-y-1">
+                <Label>Coordenadas GPS <span className="text-muted-foreground font-normal">(Google Maps: clique com botão direito → copiar)</span></Label>
+                <div className="grid grid-cols-2 gap-2">
+                  <Input
+                    placeholder="Latitude ex: -16.722409"
+                    value={customerForm.lat}
+                    onChange={e => setCustomerForm(f => ({ ...f, lat: e.target.value }))}
+                  />
+                  <Input
+                    placeholder="Longitude ex: -49.260627"
+                    value={customerForm.lng}
+                    onChange={e => setCustomerForm(f => ({ ...f, lng: e.target.value }))}
+                  />
+                </div>
               </div>
               <div className="col-span-2 space-y-1">
                 <Label>Observações</Label>
