@@ -10,7 +10,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Users, MapPin, CheckCircle, Clock, ChevronRight, ExternalLink, AlertTriangle, Bell } from 'lucide-react';
 
-const ALERT_THRESHOLD_M = 5;
+const ALERT_THRESHOLD_M = 100;
 
 function haversineDistance(lat1: number, lng1: number, lat2: number, lng2: number): number {
   const R = 6371000;

@@ -382,6 +382,11 @@ func main() {
 			handlers.AuthMiddleware(handlers.ImportRCACustomersHandler(database), "")(w, r)
 			return
 		}
+		// /routes/:id/customers/geocode
+		if len(parts) == 3 && parts[1] == "customers" && parts[2] == "geocode" && r.Method == http.MethodPost {
+			handlers.AuthMiddleware(handlers.GeocodeRouteCustomersHandler(database), "")(w, r)
+			return
+		}
 		// /routes/:id/customers
 		if len(parts) == 2 && parts[1] == "customers" {
 			switch r.Method {

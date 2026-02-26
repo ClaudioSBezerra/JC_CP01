@@ -9,7 +9,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { toast } from 'sonner';
-import { Plus, Trash2, Route, Users, ChevronDown, ChevronUp, Upload, Download } from 'lucide-react';
+import { Plus, Trash2, Route, Users, ChevronDown, ChevronUp, Upload, Download, MapPin } from 'lucide-react';
 
 // ── Componente de importação CSV (estado isolado para não perder foco) ───────
 function ImportDialog({ token, routeId, onImported, onClose }: {
@@ -168,7 +168,28 @@ export default function Rotas() {
   const [showRouteDialog, setShowRouteDialog] = useState(false);
   const [showCustomerDialog, setShowCustomerDialog] = useState<number | null>(null);
   const [showImportDialog, setShowImportDialog] = useState<number | null>(null);
+  const [geocodingRoute, setGeocodingRoute] = useState<number | null>(null);
   const [saving, setSaving] = useState(false);
+
+  const handleGeocode = async (routeId: number) => {
+    setGeocodingRoute(routeId);
+    try {
+      const res = await fetch(`/api/rca/routes/${routeId}/customers/geocode`, {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      const data = await res.json();
+      if (res.ok) {
+        toast.success(`Geocodificação iniciada — ${data.pending} cliente(s) sem coordenadas.`);
+      } else {
+        toast.error(data.error || 'Erro ao iniciar geocodificação.');
+      }
+    } catch {
+      toast.error('Erro de conexão.');
+    } finally {
+      setGeocodingRoute(null);
+    }
+  };
 
   const [routeForm, setRouteForm] = useState({ name: '', description: '' });
   const [customerForm, setCustomerForm] = useState({
@@ -334,6 +355,16 @@ export default function Rotas() {
                 <Button variant="outline" size="sm" onClick={() => setShowImportDialog(route.id)}>
                   <Upload className="h-3 w-3 mr-1" />
                   Importar
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => handleGeocode(route.id)}
+                  disabled={geocodingRoute === route.id}
+                  title="Geocodificar endereços dos clientes"
+                >
+                  <MapPin className="h-3 w-3 mr-1" />
+                  {geocodingRoute === route.id ? 'Iniciando...' : 'Geocodificar'}
                 </Button>
                 <Button variant="outline" size="sm" onClick={() => { setShowCustomerDialog(route.id); }}>
                   <Plus className="h-3 w-3 mr-1" />

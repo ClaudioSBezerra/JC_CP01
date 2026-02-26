@@ -910,6 +910,50 @@ func ImportRCACustomersHandler(db *sql.DB) http.HandlerFunc {
 	}
 }
 
+// GeocodeRouteCustomersHandler handles POST /api/rca/routes/:id/customers/geocode
+// Triggers background geocoding for all customers in the route without coordinates.
+func GeocodeRouteCustomersHandler(db *sql.DB) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		companyID := GetCompanyIDFromContext(r)
+		if companyID == "" {
+			http.Error(w, "Unauthorized", http.StatusUnauthorized)
+			return
+		}
+		if GetUserRoleFromContext(r) == "rca" {
+			http.Error(w, "Forbidden", http.StatusForbidden)
+			return
+		}
+
+		path := strings.TrimPrefix(r.URL.Path, "/api/rca/routes/")
+		parts := strings.Split(path, "/")
+		if len(parts) < 1 {
+			http.Error(w, "Invalid path", http.StatusBadRequest)
+			return
+		}
+		routeID := parts[0]
+
+		var exists bool
+		db.QueryRow(`SELECT EXISTS(SELECT 1 FROM rca_routes WHERE id=$1 AND company_id=$2)`, routeID, companyID).Scan(&exists)
+		if !exists {
+			http.Error(w, "Rota não encontrada", http.StatusNotFound)
+			return
+		}
+
+		// Count customers without coordinates
+		var pending int
+		db.QueryRow(`SELECT COUNT(*) FROM rca_customers WHERE route_id=$1 AND lat IS NULL AND is_active=TRUE`, routeID).Scan(&pending)
+
+		// Launch background geocoding
+		go geocodeCustomers(db, routeID)
+
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode(map[string]interface{}{
+			"message": "Geocodificação iniciada em background.",
+			"pending": pending,
+		})
+	}
+}
+
 // GetRCADashboardHandler handles GET /api/rca/dashboard
 func GetRCADashboardHandler(db *sql.DB) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
