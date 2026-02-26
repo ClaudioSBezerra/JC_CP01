@@ -302,7 +302,8 @@ func main() {
 	// AI Query (Consulta Inteligente)
 	http.HandleFunc("/api/ai/query", corsMiddleware(withAuth(handlers.AIQueryHandler, "")))
 
-	// Clear All (Limpeza Geral)
+	// Clear endpoints (Limpeza de Dados)
+	http.HandleFunc("/api/clear-module", corsMiddleware(withAuth(handlers.ClearModuleHandler, "")))
 	http.HandleFunc("/api/clear-all", corsMiddleware(withAuth(handlers.ClearAllHandler, "")))
 
 	// Picking Module — specific routes BEFORE the wildcard /api/picking/

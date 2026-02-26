@@ -10,7 +10,7 @@ import {
   LayoutDashboard, Package, ClipboardCheck, History, Settings,
   LogOut, ShoppingCart, AlertTriangle, Sparkles, Search,
   Warehouse, Waves, SlidersHorizontal, Truck, BarChart3,
-  Users, Route, UserCog,
+  Users, Route, UserCog, Trash2,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Separator } from '@/components/ui/separator';
@@ -58,9 +58,10 @@ const GROUPS = [
   {
     label: 'Sistema',
     icon: UserCog,
-    prefixes: ['/usuarios'],
+    prefixes: ['/usuarios', '/limpeza'],
     items: [
       { title: 'Gestão de Usuários', icon: UserCog, href: '/usuarios' },
+      { title: 'Limpeza de Dados',   icon: Trash2,  href: '/limpeza' },
     ],
   },
 ];

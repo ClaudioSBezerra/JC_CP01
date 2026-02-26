@@ -23,6 +23,7 @@ import EnderecosPicking from './pages/picking/EnderecosPicking';
 import OndasReabastecimento from './pages/picking/OndasReabastecimento';
 import ConfiguracoesPicking from './pages/picking/ConfiguracoesPicking';
 import Usuarios from './pages/Usuarios';
+import Limpeza from './pages/Limpeza';
 import DashboardComercial from './pages/rca/DashboardComercial';
 import Representantes from './pages/rca/Representantes';
 import Rotas from './pages/rca/Rotas';
@@ -76,6 +77,7 @@ function AppLayout() {
             <Route path="/consulta-inteligente" element={<ConsultaInteligente />} />
             <Route path="/configuracoes" element={<Configuracoes />} />
             <Route path="/usuarios" element={<Usuarios />} />
+            <Route path="/limpeza" element={<Limpeza />} />
             <Route path="/picking" element={<DashboardPicking />} />
             <Route path="/picking/enderecos" element={<EnderecosPicking />} />
             <Route path="/picking/ondas" element={<OndasReabastecimento />} />
