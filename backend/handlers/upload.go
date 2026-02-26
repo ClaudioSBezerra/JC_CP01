@@ -135,7 +135,7 @@ func ImportProductsHandler(db *sql.DB) http.HandlerFunc {
 						maxDDV = m
 					}
 				}
-				seasonality := "media"
+\t\t\t\tseasonality := ""
 				if len(fields) > 17 && strings.TrimSpace(fields[17]) != "" {
 					seasonality = strings.TrimSpace(fields[17])
 				}

@@ -3,7 +3,6 @@ import { useAuth } from '../contexts/AuthContext';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { GiroIndicator } from '@/components/GiroIndicator';
 import { formatNumber, formatCurrency } from '@/lib/utils';
@@ -47,12 +46,6 @@ const FILIAL_LABELS: Record<Filial, string> = {
   '03': 'Filial 03',
 };
 
-const SEASONALITY_COLORS: Record<string, string> = {
-  alta: 'bg-red-100 text-red-700 border-red-200',
-  media: 'bg-blue-100 text-blue-700 border-blue-200',
-  baixa: 'bg-green-100 text-green-700 border-green-200',
-  sazonal: 'bg-orange-100 text-orange-700 border-orange-200',
-};
 
 const MONTH_ABBR = ['Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','Dez'];
 
@@ -310,22 +303,8 @@ export default function ConsultaProdutos() {
                         <TableCell className="text-right text-xs py-1.5">
                           {formatCurrency(p.cost_price)}
                         </TableCell>
-                        <TableCell className="text-center py-1.5">
-                          {p.seasonality_type ? (
-                            <div className="flex flex-col items-center gap-0.5">
-                              <Badge
-                                variant="outline"
-                                className={`text-[9px] px-1 py-0 leading-tight ${SEASONALITY_COLORS[p.seasonality_type] || ''}`}
-                              >
-                                {p.seasonality_type}
-                              </Badge>
-                              {p.peak_months && (
-                                <span className="text-[9px] text-muted-foreground leading-tight">
-                                  {formatPeakMonths(p.peak_months)}
-                                </span>
-                              )}
-                            </div>
-                          ) : '—'}
+                        <TableCell className="text-center py-1.5 text-xs">
+                          {p.peak_months ? formatPeakMonths(p.peak_months) : 'ano todo'}
                         </TableCell>
                         <TableCell className="text-right text-xs py-1.5">
                           {p.supplier_lead_time_days > 0 ? `${p.supplier_lead_time_days}d` : '—'}
