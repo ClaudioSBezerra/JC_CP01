@@ -164,6 +164,7 @@ type RCARepresentative struct {
 	Territory      string  `json:"territory"`
 	IsActive       bool    `json:"is_active"`
 	LastCheckinAt  *string `json:"last_checkin_at"`
+	RouteCustomers int     `json:"route_customers"`
 	TodayVisits    int     `json:"today_visits"`
 	TodayCompleted int     `json:"today_completed"`
 	CreatedAt      string  `json:"created_at"`
@@ -275,11 +276,12 @@ type CheckoutRequest struct {
 }
 
 type RCADashboard struct {
-	TotalActive      int                 `json:"total_active"`
-	TotalVisitsToday int                 `json:"total_visits_today"`
-	TotalPending     int                 `json:"total_pending"`
-	TotalCompleted   int                 `json:"total_completed"`
-	Representatives  []RCARepresentative `json:"representatives"`
+	TotalActive         int                 `json:"total_active"`
+	TotalRouteCustomers int                 `json:"total_route_customers"`
+	TotalVisitsToday    int                 `json:"total_visits_today"`
+	TotalPending        int                 `json:"total_pending"`
+	TotalCompleted      int                 `json:"total_completed"`
+	Representatives     []RCARepresentative `json:"representatives"`
 }
 
 // -----------------------------------------------------------------------
@@ -847,6 +849,9 @@ func GetRCADashboardHandler(db *sql.DB) http.HandlerFunc {
 				COALESCE(r.vehicle_plate,''), COALESCE(r.territory,''),
 				r.is_active, r.created_at::text,
 				(SELECT MAX(checkin_at)::text FROM rca_visits WHERE representative_id = r.id) AS last_checkin_at,
+				(SELECT COUNT(*) FROM rca_customers rc
+				 JOIN rca_routes rr ON rr.id = rc.route_id
+				 WHERE rr.representative_id = r.id AND rr.is_active = TRUE AND rc.is_active = TRUE) AS route_customers,
 				(SELECT COUNT(*) FROM rca_visits WHERE representative_id = r.id AND visit_date = CURRENT_DATE) AS today_visits,
 				(SELECT COUNT(*) FROM rca_visits WHERE representative_id = r.id AND visit_date = CURRENT_DATE AND status = 'concluida') AS today_completed
 			FROM rca_representatives r
@@ -868,7 +873,7 @@ func GetRCADashboardHandler(db *sql.DB) http.HandlerFunc {
 				&rep.ID, &rep.CompanyID, &rep.UserID, &rep.FullName, &rep.Email,
 				&rep.Phone, &rep.VehicleType, &rep.VehiclePlate, &rep.Territory,
 				&rep.IsActive, &rep.CreatedAt, &lca,
-				&rep.TodayVisits, &rep.TodayCompleted,
+				&rep.RouteCustomers, &rep.TodayVisits, &rep.TodayCompleted,
 			); err != nil {
 				continue
 			}
@@ -878,11 +883,12 @@ func GetRCADashboardHandler(db *sql.DB) http.HandlerFunc {
 			if rep.IsActive {
 				dashboard.TotalActive++
 			}
+			dashboard.TotalRouteCustomers += rep.RouteCustomers
 			dashboard.TotalVisitsToday += rep.TodayVisits
 			dashboard.TotalCompleted += rep.TodayCompleted
 			dashboard.Representatives = append(dashboard.Representatives, rep)
 		}
-		dashboard.TotalPending = dashboard.TotalVisitsToday - dashboard.TotalCompleted
+		dashboard.TotalPending = dashboard.TotalRouteCustomers - dashboard.TotalCompleted
 
 		w.Header().Set("Content-Type", "application/json")
 		json.NewEncoder(w).Encode(dashboard)

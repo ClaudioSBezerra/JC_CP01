@@ -50,12 +50,14 @@ interface RCARepresentative {
   territory: string;
   is_active: boolean;
   last_checkin_at: string | null;
+  route_customers: number;
   today_visits: number;
   today_completed: number;
 }
 
 interface RCADashboard {
   total_active: number;
+  total_route_customers: number;
   total_visits_today: number;
   total_pending: number;
   total_completed: number;
@@ -171,11 +173,11 @@ export default function DashboardComercial() {
         </Card>
         <Card>
           <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground">Visitas Hoje</CardTitle>
+            <CardTitle className="text-sm font-medium text-muted-foreground">Planejado</CardTitle>
             <MapPin className="h-4 w-4 text-purple-500" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{dashboard?.total_visits_today ?? '—'}</div>
+            <div className="text-2xl font-bold">{dashboard?.total_route_customers ?? '—'}</div>
           </CardContent>
         </Card>
         <Card>
@@ -299,8 +301,8 @@ export default function DashboardComercial() {
               <TableBody>
                 {reps.map(rep => {
                   const hasPos = positions.some(p => p.rep.id === rep.id);
-                  const progressPct = rep.today_visits > 0
-                    ? Math.round((rep.today_completed / rep.today_visits) * 100)
+                  const progressPct = rep.route_customers > 0
+                    ? Math.round((rep.today_completed / rep.route_customers) * 100)
                     : 0;
                   const repAlerts = alertCounts[rep.id] ?? 0;
                   return (
@@ -311,8 +313,8 @@ export default function DashboardComercial() {
                       </TableCell>
                       <TableCell className="text-sm">{rep.territory || '—'}</TableCell>
                       <TableCell className="text-center">
-                        <div className="font-medium">{rep.today_visits}</div>
-                        {rep.today_visits > 0 && (
+                        <div className="font-medium">{rep.today_completed}/{rep.route_customers}</div>
+                        {rep.route_customers > 0 && (
                           <div className="text-xs text-muted-foreground">{progressPct}%</div>
                         )}
                       </TableCell>
